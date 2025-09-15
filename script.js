@@ -74,7 +74,20 @@ function calculateOutstandingDebts(playerIdx) {
   return totalDebts;
 }
 
+// Track donation state for current turn globally
+let normalDonated = 0;
+let powerDonated = 0;
+let tempProgress = 0;
+
+function resetDonationState() {
+  normalDonated = 0;
+  powerDonated = 0;
+  tempProgress = players[currentPlayerIndex] ? players[currentPlayerIndex].progress : 0;
+}
+
 function showPlayerCards() {
+  // Reset donation state for the new turn
+  resetDonationState();
   let cards = '';
   for (let i = 0; i < players.length; i++) {
     const player = players[i];
@@ -169,6 +182,7 @@ function setupPlayerCardClickHandler() {
         if (e.target.closest('.card-btn')) return;
         if (currentPlayerIndex === i) return;
         currentPlayerIndex = i;
+        resetDonationState(); // Reset for new active player
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -203,6 +217,7 @@ function setupScrollToSetActivePlayer() {
       });
       if (minIndex !== currentPlayerIndex) {
         currentPlayerIndex = minIndex;
+        resetDonationState(); // Reset for new active player
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -301,10 +316,9 @@ function tookCharityAction(playerIndex) {
 }
 
 function loadCalculator() {
-  const player = players[currentPlayerIndex];
-  let normalDonated = 0;
-  let powerDonated = 0;
-  let tempProgress = player.progress;
+  // tempProgress is always the player's current progress at start of turn
+  // normalDonated and powerDonated are sticky for the turn
+  // (already global variables)
 
   function updateDisplay() {
     let prev = tempProgress;
@@ -334,7 +348,7 @@ function loadCalculator() {
 
     let streaksThisTurn = Math.floor(total / 5);
     let totalStreaksThisTurn = streaksThisTurn;
-    let taxBreaksPreview = player.streaks + player.powerCards + powerDonated + totalStreaksThisTurn;
+    let taxBreaksPreview = players[currentPlayerIndex].streaks + players[currentPlayerIndex].powerCards + powerDonated + totalStreaksThisTurn;
 
     let timerHtml = `
       <div id="calculatorTimerWrapper">
@@ -383,7 +397,7 @@ function loadCalculator() {
     document.getElementById("mainGameContainer").innerHTML = `
       <div class="calculatorBox" style="text-align:center; position:relative;">
         ${timerHtml}
-        <h2 class="player-name">${player.name}'s Turn</h2>
+        <h2 class="player-name">${players[currentPlayerIndex].name}'s Turn</h2>
         <label>Normal Cards Donated</label>
         <div class="donate-row">
           <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
@@ -455,18 +469,20 @@ function loadCalculator() {
       cell.onclick = function() {
         const debtorIdx = parseInt(cell.getAttribute("data-debtor"));
         const creditorIdx = parseInt(cell.getAttribute("data-creditor"));
-        showDebtsPopup(debtorIdx, creditorIdx);
+        showOutstandingDebtsPopup(debtorIdx, creditorIdx);
       };
     });
   }
   updateDisplay();
 }
 
-function showDebtsPopup(debtorIdx, creditorIdx) {
+// RENAMED: Outstanding Debts Popup
+function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   const creditorName = players[creditorIdx].name;
   const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
   const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
-  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Debts Owed to ${creditorName}</h2>`;
+  // CHANGE: Now says "Outstanding Debts with ..."
+  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Outstanding Debts with ${creditorName}</h2>`;
 
   popupHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:1rem; margin-bottom:1rem;">`;
   debtCategories.forEach(cat => {
@@ -498,7 +514,7 @@ function showDebtsPopup(debtorIdx, creditorIdx) {
   customHTMLPopupNoExtraCloseBtn(`<div></div>`, popupHtml, () => {
     document.getElementById("closeDebtsPopupBtn").onclick = () => {
       document.getElementById("customPopupOverlay").style.display = "none";
-      loadCalculator();
+      loadCalculator(); // Will use the global variables for donation state
     };
     document.querySelectorAll('.changeDebtBtn').forEach(btn => {
       btn.onclick = function(e) {
@@ -507,7 +523,7 @@ function showDebtsPopup(debtorIdx, creditorIdx) {
         const debtorIdx = parseInt(btn.getAttribute('data-debtor'));
         const creditorIdx = parseInt(btn.getAttribute('data-creditor'));
         debts[debtorIdx][creditorIdx][cat] = Math.max(0, (debts[debtorIdx][creditorIdx][cat] || 0) + delta);
-        showDebtsPopup(debtorIdx, creditorIdx);
+        showOutstandingDebtsPopup(debtorIdx, creditorIdx);
       };
     });
   });
@@ -530,7 +546,10 @@ function customHTMLPopupNoExtraCloseBtn(message, html, callback) {
   if (typeof callback === "function") callback();
 }
 
-function confirmTurnWithBlocks(normalDonated, powerDonated) {
+function confirmTurnWithBlocks(normalDonatedArg, powerDonatedArg) {
+  // Use the arguments, but also sync the global variables
+  normalDonated = normalDonatedArg;
+  powerDonated = powerDonatedArg;
   const p = players[currentPlayerIndex];
   let totalProgress = p.progress + normalDonated;
   let completedStreaks = Math.floor(totalProgress / 5);
