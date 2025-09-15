@@ -5,7 +5,14 @@ let timeLeft = 60;
 let timerRunningState = true;
 let disallowedNormalCards = [];
 
-// Prevent double-tap to zoom globally for buttons (extra safety)
+const debtCategories = [
+  "Haggie", "Stomp&Bray", "Lawffy", "Finnley", "Hoobert", "Droolski", "Vinnie", "Twiggles", "Mav", "Clauseby", "Buckley", "Bugsy", "Wiggy", "Squeak", "Beebo", "Wally", "Tillie", "Moozy"
+];
+function getImageName(name) {
+  return `Characters/${name.toLowerCase().replace(/&/g, "-").replace(/ /g, "-")}.png`;
+}
+let debts = [];
+
 let lastTouch = 0;
 document.addEventListener('touchend', function(e) {
   if (
@@ -39,6 +46,13 @@ document.getElementById("playerForm").addEventListener("submit", function(e) {
     tax: 0
   }));
   disallowedNormalCards = Array(players.length).fill(0);
+  debts = Array(players.length).fill().map((_, i) =>
+    Array(players.length).fill().map((_, j) => {
+      let obj = {};
+      debtCategories.forEach(cat => obj[cat] = 0);
+      return obj;
+    })
+  );
   document.getElementById("playerSetupBox").style.display = "none";
   const n = players.length;
   let setupMsg = `<span style="font-family: 'Roboto', sans-serif; color: #f1f1f1;">Reloading this page will reset your progress.</span><br><br>`;
@@ -68,8 +82,7 @@ function showPlayerCards() {
             <span class="player-card-breaks-num">${player.streaks + player.powerCards}</span>
           </div>
           <div class="player-card-actions">
-            <button class="card-btn donate-btn" onclick="donateAction(${i})">Donated to Charity</button>
-            <button class="card-btn charity-btn" onclick="tookCharityAction(${i})">Took from Charity</button>
+            <button class="card-btn donate-btn" onclick="donateAction(${i})">Log</button>
           </div>
         </div>
       </div>
@@ -108,10 +121,9 @@ function setupTimerClickHandler() {
         handleTimerClick();
       }
     }
-    // Setup calculator timer click handler if present
     const calcTimerDiv = document.getElementById('calculatorTimerDisplay');
     if (calcTimerDiv) {
-      calcTimerDiv.style.cursor = 'pointer'; // Show pointer cursor
+      calcTimerDiv.style.cursor = 'pointer';
       calcTimerDiv.onclick = function() {
         handleTimerClick();
       }
@@ -119,7 +131,6 @@ function setupTimerClickHandler() {
   }, 0);
 }
 
-// Central timer click logic for both timers
 function handleTimerClick() {
   if (timeLeft === 0) {
     timeLeft = 60;
@@ -251,7 +262,7 @@ function updatePopupTimerDisplay() {
     else div.innerText = "";
   });
   updateCalculatorTimerDisplay();
-  setupTimerClickHandler(); // Ensure the click handler is always attached to both timers
+  setupTimerClickHandler();
 }
 
 function updateCalculatorTimerDisplay() {
@@ -275,7 +286,6 @@ function tookCharityAction(playerIndex) {
   nextPlayer();
 }
 
-// --- DONATION CALCULATOR WITH PROGRESSION AND POWER CIRCLE ---
 function loadCalculator() {
   const player = players[currentPlayerIndex];
   let normalDonated = 0;
@@ -288,7 +298,6 @@ function loadCalculator() {
     let total = prev + donated;
     let remainder = total % 5;
     let blocksToShow = (remainder === 0 && total > 0) ? 5 : remainder;
-
     let prevLeft = 0;
     if (total > 0) {
       let prevUsed = Math.min(prev, total - blocksToShow);
@@ -298,7 +307,6 @@ function loadCalculator() {
     }
     let gold = prevLeft;
     let gray = Math.max(0, blocksToShow - gold);
-
     let blocks = "";
     for (let i = 0; i < 5; i++) {
       if (i < gold) {
@@ -314,19 +322,49 @@ function loadCalculator() {
     let totalStreaksThisTurn = streaksThisTurn;
     let taxBreaksPreview = player.streaks + player.powerCards + powerDonated + totalStreaksThisTurn;
 
-    let confirmButtonHtml = '';
-    if (normalDonated === 0 && powerDonated === 0) {
-      confirmButtonHtml = `<button id="confirmDonationBtn" style="background:#947c52; color:#fff;">No Donations</button>`;
-    } else {
-      confirmButtonHtml = `<button onclick="confirmTurnWithBlocks(${normalDonated},${powerDonated})" id="confirmDonationBtn">Confirm</button>`;
-    }
-
-    // --- TIMER DISPLAY ADDED, now with correct color/class ---
     let timerHtml = `
       <div id="calculatorTimerWrapper">
         <span id="calculatorTimerDisplay" class="player-card-timer" style="cursor:pointer;">${timeLeft}</span>
       </div>
     `;
+    let buttonContainerStyle = "display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap;";
+    let mainBtnStyle = "background:#d4af7f; color:#232323; min-width:110px; border-radius:8px; border:none; font-family:'Lilita One',cursive; font-size:1.05rem; font-weight:normal; cursor:pointer; padding:0.65rem 1.2rem;";
+    let plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+    let minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+    let confirmButtonHtml = '';
+    let tookCharityButtonHtml = `
+      <button id="tookCharityBtn" style="${mainBtnStyle}">Took from Charity</button>
+    `;
+    if (normalDonated === 0 && powerDonated === 0) {
+      confirmButtonHtml = `
+        <button id="confirmDonationBtn" style="${mainBtnStyle}">No Donations</button>
+        ${tookCharityButtonHtml}
+      `;
+    } else {
+      confirmButtonHtml = `<button onclick="confirmTurnWithBlocks(${normalDonated},${powerDonated})" id="confirmDonationBtn" style="${mainBtnStyle}">Confirm</button>`;
+    }
+
+    let debtsGridHtml = '';
+    if (players.length > 1) {
+      debtsGridHtml += `<div style="margin-top:0.5rem;">
+        <h3 class="lilita" style="color:#fff; font-size:1.28rem; margin-bottom:0.45rem; font-weight:normal;">Outstanding Debts</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.95rem;">`;
+      for (let i = 0; i < players.length; i++) {
+        if (i === currentPlayerIndex) continue;
+        let totalDebts = debtCategories.reduce((sum, cat) => sum + (debts[currentPlayerIndex][i][cat] || 0), 0);
+        debtsGridHtml += `
+          <div class="debtsGridCell" data-debtor="${currentPlayerIndex}" data-creditor="${i}"
+            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal;">
+            <div style="font-size:1.13rem; color:#d4af7f; margin-bottom:0.25rem;">${players[i].name}</div>
+            <div style="font-size:1.28rem; color:#fff; margin-bottom:0.3rem;">
+              <span style="font-family:'Roboto',sans-serif; font-size:1rem; color:#d4af7f;">Debts:</span>
+              <span style="color:#dc143c; font-weight:normal;">${totalDebts}</span>
+            </div>
+          </div>
+        `;
+      }
+      debtsGridHtml += `</div></div>`;
+    }
 
     document.getElementById("mainGameContainer").innerHTML = `
       <div class="calculatorBox" style="text-align:center; position:relative;">
@@ -334,21 +372,24 @@ function loadCalculator() {
         <h2 class="player-name">${player.name}'s Turn</h2>
         <label>Normal Cards Donated</label>
         <div class="donate-row">
-          <button class="donate-btn-shape" id="minusNormal" style="background:#947c52; color:#fff;" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
+          <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
           <div class="donate-blocks-container">${blocks}</div>
-          <button class="donate-btn-shape" id="plusNormal" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''}>+</button>
+          <button class="donate-btn-shape" id="plusNormal" style="${plusBtnStyle}" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''}>+</button>
         </div>
         <span class="streak-helper">Each streak (5 cards) is a Tax Break Earned</span>
         <label class="power-label">Power Cards or Cash Donated</label>
         <div class="donate-row">
-          <button class="donate-btn-shape" id="minusPower" style="background:#947c52; color:#fff;" ${powerDonated === 0 ? 'disabled' : ''}>-</button>
+          <button class="donate-btn-shape" id="minusPower" style="${minusBtnStyle}" ${powerDonated === 0 ? 'disabled' : ''}>-</button>
           <div class="power-circle-container">
             <div class="power-circle${powerDonated === 0 ? " zero" : ""}">${powerDonated}</div>
           </div>
-          <button class="donate-btn-shape" id="plusPower" ${powerDonated >= 20 ? 'disabled' : ''}>+</button>
+          <button class="donate-btn-shape" id="plusPower" style="${plusBtnStyle}" ${powerDonated >= 20 ? 'disabled' : ''}>+</button>
         </div>
-        <p class="player-card-breaks" style="text-align:center;">Tax Breaks Earned: <span id="taxBreaksPreview">${taxBreaksPreview}</span></p>
-        ${confirmButtonHtml}
+        <p class="player-card-breaks" style="text-align:center; margin-bottom:0.2rem;">Tax Breaks Earned: <span id="taxBreaksPreview">${taxBreaksPreview}</span></p>
+        ${debtsGridHtml}
+        <div style="${buttonContainerStyle}">
+          ${confirmButtonHtml}
+        </div>
       </div>
     `;
 
@@ -380,10 +421,99 @@ function loadCalculator() {
       }
     };
     document.getElementById("confirmDonationBtn").onclick = function() {
-      confirmTurnWithBlocks(normalDonated, powerDonated);
+      if (normalDonated === 0 && powerDonated === 0) {
+        nextPlayer();
+      } else {
+        confirmTurnWithBlocks(normalDonated, powerDonated);
+      }
     };
+
+    if (normalDonated === 0 && powerDonated === 0) {
+      const tookCharityBtn = document.getElementById("tookCharityBtn");
+      if (tookCharityBtn) {
+        tookCharityBtn.onclick = function() {
+          tookCharityAction(currentPlayerIndex);
+        };
+      }
+    }
+
+    document.querySelectorAll('.debtsGridCell').forEach(cell => {
+      cell.onclick = function() {
+        const debtorIdx = parseInt(cell.getAttribute("data-debtor"));
+        const creditorIdx = parseInt(cell.getAttribute("data-creditor"));
+        showDebtsPopup(debtorIdx, creditorIdx);
+      };
+    });
   }
   updateDisplay();
+}
+
+function showDebtsPopup(debtorIdx, creditorIdx) {
+  const creditorName = players[creditorIdx].name;
+  const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+  const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Debts Owed to ${creditorName}</h2>`;
+
+  popupHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:1rem; margin-bottom:1rem;">`;
+  debtCategories.forEach(cat => {
+    const imgSrc = getImageName(cat);
+    const debtAmt = debts[debtorIdx][creditorIdx][cat] || 0;
+    popupHtml += `
+      <div style="position:relative; background:#232323; border-radius:12px; box-shadow:0 2px 8px #0002; padding:0.5rem;">
+        <div style="position:relative;">
+          <img src="${imgSrc}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
+          <div style="position:absolute; left:12px; bottom:10px;">
+            <button class="changeDebtBtn" data-cat="${cat}" data-delta="-1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}"
+              style="${minusBtnStyle}">-</button>
+          </div>
+          <div style="position:absolute; right:12px; bottom:10px;">
+            <button class="changeDebtBtn" data-cat="${cat}" data-delta="1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}"
+              style="${plusBtnStyle}">+</button>
+          </div>
+          <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:bold; font-size:1.5rem; color:#d4af7f; font-family:'Lilita One',cursive;">${debtAmt}</div>
+        </div>
+        <div style="text-align:center; font-family:'Lilita One',cursive; margin-top:0.3rem; color:#d4af7f; font-size:1rem;">${cat}</div>
+      </div>
+    `;
+  });
+
+  popupHtml += `</div>
+    <button id="closeDebtsPopupBtn" style="margin-top:0.2rem; background:#d4af7f; color:#232323; border-radius:8px; border:none; padding:0.65rem 1.2rem; font-family:'Lilita One',cursive; font-size:1.05rem; cursor:pointer;">Close</button>
+  `;
+
+  customHTMLPopupNoExtraCloseBtn(`<div></div>`, popupHtml, () => {
+    document.getElementById("closeDebtsPopupBtn").onclick = () => {
+      document.getElementById("customPopupOverlay").style.display = "none";
+      loadCalculator();
+    };
+    document.querySelectorAll('.changeDebtBtn').forEach(btn => {
+      btn.onclick = function(e) {
+        const cat = btn.getAttribute('data-cat');
+        const delta = parseInt(btn.getAttribute('data-delta'));
+        const debtorIdx = parseInt(btn.getAttribute('data-debtor'));
+        const creditorIdx = parseInt(btn.getAttribute('data-creditor'));
+        debts[debtorIdx][creditorIdx][cat] = Math.max(0, (debts[debtorIdx][creditorIdx][cat] || 0) + delta);
+        showDebtsPopup(debtorIdx, creditorIdx);
+      };
+    });
+  });
+}
+
+function customHTMLPopupNoExtraCloseBtn(message, html, callback) {
+  const overlay = document.getElementById("customPopupOverlay");
+  const msg = document.getElementById("customPopupMessage");
+  const yesBtn = document.getElementById("customPopupYes");
+  const noBtn = document.getElementById("customPopupNo");
+
+  msg.innerHTML = `${message}<br>${html}`;
+  msg.style.maxHeight = "75vh";
+  msg.style.overflowY = "auto";
+
+  overlay.style.display = "flex";
+  yesBtn.style.display = "none";
+  noBtn.style.display = "none";
+
+  if (typeof callback === "function") callback();
 }
 
 function confirmTurnWithBlocks(normalDonated, powerDonated) {
@@ -395,8 +525,6 @@ function confirmTurnWithBlocks(normalDonated, powerDonated) {
   p.powerCards += powerDonated;
   nextPlayer();
 }
-
-// --- END DONATION CALCULATOR ---
 
 function showEndgame() {
   customPopup("Is the game over? Ready for final taxes?", function(confirm) {
