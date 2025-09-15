@@ -65,10 +65,21 @@ document.getElementById("playerForm").addEventListener("submit", function(e) {
   }, true, "Yes", "No", true);
 });
 
+function calculateOutstandingDebts(playerIdx) {
+  let totalDebts = 0;
+  for (let i = 0; i < players.length; i++) {
+    if (i === playerIdx) continue;
+    totalDebts += debtCategories.reduce((sum, cat) => sum + (debts[playerIdx][i][cat] || 0), 0);
+  }
+  return totalDebts;
+}
+
 function showPlayerCards() {
   let cards = '';
   for (let i = 0; i < players.length; i++) {
     const player = players[i];
+    // Calculate outstanding debts for this player
+    const outstandingDebts = calculateOutstandingDebts(i);
     cards += `
       <div class="player-card${i === currentPlayerIndex ? ' active' : ''}" data-index="${i}">
         <div class="player-card-inner">
@@ -80,6 +91,9 @@ function showPlayerCards() {
           <div class="player-card-breaks">
             <span>Tax Breaks Earned:</span>
             <span class="player-card-breaks-num">${player.streaks + player.powerCards}</span>
+          </div>
+          <div style="margin: 0.5rem 0; font-size:1rem; color:#dc143c; font-family:'Lilita One',cursive;">
+            Outstanding Debts: <span style="font-weight:bold;">${outstandingDebts}</span>
           </div>
           <div class="player-card-actions">
             <button class="card-btn donate-btn" onclick="donateAction(${i})">Log</button>
@@ -463,16 +477,16 @@ function showDebtsPopup(debtorIdx, creditorIdx) {
         <div style="position:relative;">
           <img src="${imgSrc}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
           <div style="position:absolute; left:12px; bottom:10px;">
-            <button class="changeDebtBtn" data-cat="${cat}" data-delta="-1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}"
-              style="${minusBtnStyle}">-</button>
+            <button class="changeDebtBtn" data-cat="${cat}" data-delta="-1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}" style="${minusBtnStyle}">-</button>
           </div>
           <div style="position:absolute; right:12px; bottom:10px;">
-            <button class="changeDebtBtn" data-cat="${cat}" data-delta="1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}"
-              style="${plusBtnStyle}">+</button>
+            <button class="changeDebtBtn" data-cat="${cat}" data-delta="1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}" style="${plusBtnStyle}">+</button>
           </div>
-          <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:bold; font-size:1.5rem; color:#d4af7f; font-family:'Lilita One',cursive;">${debtAmt}</div>
         </div>
-        <div style="text-align:center; font-family:'Lilita One',cursive; margin-top:0.3rem; color:#d4af7f; font-size:1rem;">${cat}</div>
+        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.3rem; color:#d4af7f; font-size:1rem;">
+          <span style="flex:1; text-align:left;">${cat}</span>
+          <span style="flex:none; margin-left:0.7em; font-weight:bold;">${debtAmt}</span>
+        </div>
       </div>
     `;
   });
