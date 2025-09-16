@@ -74,6 +74,22 @@ function calculateOutstandingDebts(playerIdx) {
   return totalDebts;
 }
 
+function calculateRedGreenTotals(playerIdx) {
+  // Red (sum of all debts owed by playerIdx to others)
+  let totalRed = 0;
+  for (let i = 0; i < players.length; i++) {
+    if (i === playerIdx) continue;
+    totalRed += debtCategories.reduce((sum, cat) => sum + (debts[playerIdx][i][cat] || 0), 0);
+  }
+  // Green (sum of all debts owed to playerIdx by others)
+  let totalGreen = 0;
+  for (let i = 0; i < players.length; i++) {
+    if (i === playerIdx) continue;
+    totalGreen += debtCategories.reduce((sum, cat) => sum + (debts[i][playerIdx][cat] || 0), 0);
+  }
+  return { totalRed, totalGreen };
+}
+
 // Track donation state for current turn globally
 let normalDonated = 0;
 let powerDonated = 0;
@@ -91,8 +107,7 @@ function showPlayerCards() {
   let cards = '';
   for (let i = 0; i < players.length; i++) {
     const player = players[i];
-    // Calculate outstanding debts for this player
-    const outstandingDebts = calculateOutstandingDebts(i);
+    const { totalRed, totalGreen } = calculateRedGreenTotals(i);
     cards += `
       <div class="player-card${i === currentPlayerIndex ? ' active' : ''}" data-index="${i}">
         <div class="player-card-inner">
@@ -105,8 +120,10 @@ function showPlayerCards() {
             <span>Tax Breaks Earned:</span>
             <span class="player-card-breaks-num">${player.streaks + player.powerCards}</span>
           </div>
-          <div style="margin: 0.5rem 0; font-size:1rem; color:#dc143c; font-family:'Lilita One',cursive;">
-            Outstanding Debts: <span style="font-weight:bold;">${outstandingDebts}</span>
+          <div style="margin: 0.5rem 0; font-size:1rem; font-family:'Lilita One',cursive; display:flex; align-items:center; justify-content:center; gap:0.7em;">
+            <span style="font-weight:bold; color:#dc143c;">${totalRed}</span>
+            <span style="font-weight:normal; color:#f1f1f1;">Outstanding Debts</span>
+            <span style="font-weight:bold; color:#19a43c;">${totalGreen}</span>
           </div>
           <div class="player-card-actions">
             <button class="card-btn donate-btn" onclick="donateAction(${i})">Log</button>
@@ -316,10 +333,6 @@ function tookCharityAction(playerIndex) {
 }
 
 function loadCalculator() {
-  // tempProgress is always the player's current progress at start of turn
-  // normalDonated and powerDonated are sticky for the turn
-  // (already global variables)
-
   function updateDisplay() {
     let prev = tempProgress;
     let donated = normalDonated;
@@ -379,14 +392,15 @@ function loadCalculator() {
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.95rem;">`;
       for (let i = 0; i < players.length; i++) {
         if (i === currentPlayerIndex) continue;
-        let totalDebts = debtCategories.reduce((sum, cat) => sum + (debts[currentPlayerIndex][i][cat] || 0), 0);
+        let payAmt = debtCategories.reduce((sum, cat) => sum + (debts[currentPlayerIndex][i][cat] || 0), 0);
+        let collectAmt = debtCategories.reduce((sum, cat) => sum + (debts[i][currentPlayerIndex][cat] || 0), 0);
         debtsGridHtml += `
           <div class="debtsGridCell" data-debtor="${currentPlayerIndex}" data-creditor="${i}"
-            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal;">
+            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal; position:relative;">
             <div style="font-size:1.13rem; color:#d4af7f; margin-bottom:0.25rem;">${players[i].name}</div>
-            <div style="font-size:1.28rem; color:#fff; margin-bottom:0.3rem;">
-              <span style="font-family:'Roboto',sans-serif; font-size:1rem; color:#d4af7f;">Debts:</span>
-              <span style="color:#dc143c; font-weight:normal;">${totalDebts}</span>
+            <div style="display:flex; align-items:center; justify-content:center; gap:0.65em; margin-bottom:0.18rem;">
+              <span style="font-weight:bold; color:#dc143c; font-size:1.13em;">${payAmt}</span>
+              <span style="font-weight:bold; color:#19a43c; font-size:1.13em;">${collectAmt}</span>
             </div>
           </div>
         `;
@@ -476,32 +490,53 @@ function loadCalculator() {
   updateDisplay();
 }
 
-// RENAMED: Outstanding Debts Popup
+// Outstanding Debts Popup, active player's perspective, only record if category selected
+let selectedCategory = null;
+let selectedType = "pay"; // "pay" or "collect"
+
 function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
-  const creditorName = players[creditorIdx].name;
+  const activeIdx = currentPlayerIndex;
+  const otherIdx = creditorIdx;
+  const otherName = players[otherIdx].name;
   const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
   const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
-  // CHANGE: Now says "Outstanding Debts with ..."
-  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Outstanding Debts with ${creditorName}</h2>`;
+  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Outstanding Debts with ${otherName}</h2>`;
 
   popupHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:1rem; margin-bottom:1rem;">`;
   debtCategories.forEach(cat => {
-    const imgSrc = getImageName(cat);
-    const debtAmt = debts[debtorIdx][creditorIdx][cat] || 0;
+    const payAmt = debts[activeIdx][otherIdx][cat] || 0;
+    const collectAmt = debts[otherIdx][activeIdx][cat] || 0;
+
+    let borderColor = "#d4af7f60";
+    let shadowColor = "#0002";
+    let isSelected = selectedCategory === cat;
+    if (isSelected && selectedType === "pay") {
+      borderColor = "#dc143c";
+      shadowColor = "#dc143c88";
+    } else if (isSelected && selectedType === "collect") {
+      borderColor = "#19a43c";
+      shadowColor = "#19a43c88";
+    }
+    let frameStyle = `background:#232323; border-radius:12px; box-shadow:0 2px 8px ${shadowColor}; padding:0.5rem; border:3px solid ${borderColor}; cursor:pointer; position:relative;`;
+
     popupHtml += `
-      <div style="position:relative; background:#232323; border-radius:12px; box-shadow:0 2px 8px #0002; padding:0.5rem;">
+      <div class="debtCatFrame" data-cat="${cat}" style="${frameStyle}">
+        <span style="position:absolute; top:0.5em; left:0.7em; font-weight:bold; color:#dc143c; font-size:1.08em; z-index:1;">${payAmt}</span>
+        <span style="position:absolute; top:0.5em; right:0.7em; font-weight:bold; color:#19a43c; font-size:1.08em; z-index:1;">${collectAmt}</span>
         <div style="position:relative;">
-          <img src="${imgSrc}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
-          <div style="position:absolute; left:12px; bottom:10px;">
-            <button class="changeDebtBtn" data-cat="${cat}" data-delta="-1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}" style="${minusBtnStyle}">-</button>
-          </div>
-          <div style="position:absolute; right:12px; bottom:10px;">
-            <button class="changeDebtBtn" data-cat="${cat}" data-delta="1" data-debtor="${debtorIdx}" data-creditor="${creditorIdx}" style="${plusBtnStyle}">+</button>
-          </div>
+          <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
         </div>
-        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.3rem; color:#d4af7f; font-size:1rem;">
-          <span style="flex:1; text-align:left;">${cat}</span>
-          <span style="flex:none; margin-left:0.7em; font-weight:bold;">${debtAmt}</span>
+        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.3rem; font-size:1rem; gap:0.5em; text-align:center;">
+          <span style="flex:1; text-align:center; width:100%;">${cat}</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:0.5em; margin-top:0.2em; min-height:32px;">
+          ${
+            isSelected
+              ? `<button class="changeDebtBtn" data-cat="${cat}" style="${minusBtnStyle}" data-type="minus">-</button>
+                 <button class="changeDebtBtn" data-cat="${cat}" style="${plusBtnStyle}" data-type="plus">+</button>`
+              : `<div style="width:32px;height:32px;display:inline-block;"></div>
+                 <div style="width:32px;height:32px;display:inline-block;"></div>`
+          }
         </div>
       </div>
     `;
@@ -514,16 +549,40 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   customHTMLPopupNoExtraCloseBtn(`<div></div>`, popupHtml, () => {
     document.getElementById("closeDebtsPopupBtn").onclick = () => {
       document.getElementById("customPopupOverlay").style.display = "none";
-      loadCalculator(); // Will use the global variables for donation state
+      selectedCategory = null;
+      selectedType = "pay";
+      loadCalculator();
     };
+
+    // Category click only toggles pay/collect if you click the frame itself and NOT the buttons
+    document.querySelectorAll('.debtCatFrame').forEach(frame => {
+      frame.addEventListener('click', function(e) {
+        if (e.target.classList.contains('changeDebtBtn')) return;
+        const cat = frame.getAttribute("data-cat");
+        if (selectedCategory === cat) {
+          selectedType = selectedType === "pay" ? "collect" : "pay";
+        } else {
+          selectedType = "pay";
+        }
+        selectedCategory = cat;
+        showOutstandingDebtsPopup(activeIdx, otherIdx);
+      });
+    });
+
     document.querySelectorAll('.changeDebtBtn').forEach(btn => {
       btn.onclick = function(e) {
         const cat = btn.getAttribute('data-cat');
-        const delta = parseInt(btn.getAttribute('data-delta'));
-        const debtorIdx = parseInt(btn.getAttribute('data-debtor'));
-        const creditorIdx = parseInt(btn.getAttribute('data-creditor'));
-        debts[debtorIdx][creditorIdx][cat] = Math.max(0, (debts[debtorIdx][creditorIdx][cat] || 0) + delta);
-        showOutstandingDebtsPopup(debtorIdx, creditorIdx);
+        let mode = selectedType;
+        let delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
+        // Only record if this category is selected!
+        if (selectedCategory === cat) {
+          if (mode === "pay") {
+            debts[activeIdx][otherIdx][cat] = Math.max(0, (debts[activeIdx][otherIdx][cat] || 0) + delta);
+          } else {
+            debts[otherIdx][activeIdx][cat] = Math.max(0, (debts[otherIdx][activeIdx][cat] || 0) + delta);
+          }
+        }
+        showOutstandingDebtsPopup(activeIdx, otherIdx);
       };
     });
   });
@@ -547,7 +606,6 @@ function customHTMLPopupNoExtraCloseBtn(message, html, callback) {
 }
 
 function confirmTurnWithBlocks(normalDonatedArg, powerDonatedArg) {
-  // Use the arguments, but also sync the global variables
   normalDonated = normalDonatedArg;
   powerDonated = powerDonatedArg;
   const p = players[currentPlayerIndex];
