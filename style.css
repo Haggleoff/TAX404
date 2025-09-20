@@ -43,7 +43,7 @@ body {
 }
 #taxLogoText {
   margin-top: 0;
-  margin-bottom: 0.25rem !important; /* Adds a small gap below TAX404 */
+  margin-bottom: 0.25rem !important;
   padding-bottom: 0 !important;
 }
 #headerTagline {
@@ -269,8 +269,6 @@ input[type="number"]:focus, input[type="text"]:focus {
   margin: 0.5rem 0 0.2rem 0;
   width: 100%;
 }
-
-/* Always reserve space for streak progress, even if empty */
 .player-card-progress-bar {
   min-height: 30px;
   height: 30px;
@@ -279,7 +277,6 @@ input[type="number"]:focus, input[type="text"]:focus {
   justify-content: center;
   align-items: center;
 }
-
 .player-card-breaks,
 .final-result-breaks {
   margin: 0.5rem 0;
@@ -303,8 +300,8 @@ input[type="number"]:focus, input[type="text"]:focus {
 .player-card-actions {
   margin-top: 0.7rem;
   display: flex;
-  flex-direction: column; /* Stack buttons vertically */
-  gap: 0.25rem; /* Reduced gap between buttons */
+  flex-direction: column;
+  gap: 0.25rem;
   width: 100%;
   justify-content: center;
   align-items: center;
@@ -330,15 +327,6 @@ input[type="number"]:focus, input[type="text"]:focus {
 .card-btn:active {
   background: #a68c5c;
 }
-.donate-btn { }
-.charity-btn { background: #947c52; color: #fff; }
-.charity-btn:active { background: #7a6135; }
-/* Endgame Taxes Button - Less Wide */
-/* 
-   The wrapping div around Endgame Taxes button in your HTML has:
-   <div style="text-align:center; margin: 2rem auto 0 auto;">
-   ...so we must override that margin with a lower specificity selector or !important.
-*/
 .player-cards-scroll-container + div[style*="text-align:center"] {
   margin-top: 0.1rem !important;
   margin-bottom: 0 !important;
@@ -362,7 +350,6 @@ input[type="number"]:focus, input[type="text"]:focus {
   font-weight: normal !important;
   font-style: normal !important;
 }
-/* HORIZONTALLY SWIPEABLE CAROUSEL for both final results and endgame input */
 .final-results-cards-container,
 .endgame-cards-container {
   display: flex;
@@ -621,8 +608,6 @@ button, .styled-btn, .card-btn, .donate-btn-shape {
   background: #444;
   border-radius: 6px;
 }
-
-/* --- Calculator Timer Styling --- */
 #calculatorTimerWrapper {
   position: absolute;
   top: 14px;
@@ -644,16 +629,80 @@ button, .styled-btn, .card-btn, .donate-btn-shape {
   font-weight: normal;
   cursor: pointer;
 }
-
-/* --- Hide scrollbars but allow scroll/swipe for carousel containers --- */
+/* Hide scrollbars for horizontal carousels */
 .player-cards-row,
 .final-results-cards-container,
 .endgame-cards-container {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .player-cards-row::-webkit-scrollbar,
 .final-results-cards-container::-webkit-scrollbar,
 .endgame-cards-container::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+}
+/* Debt grouped carousels (updated to match endgame style without smooth scroll to prevent jitter) */
+.debt-group-title {
+  font-family: 'Lilita One', cursive;
+  color: #d4af7f;
+  font-size: 1.15rem;
+  margin: 0.3rem 0 0.4rem;
+  text-align: left;
+  font-weight: normal;
+}
+.debt-subcarousel {
+  margin-bottom: 1.1rem;
+}
+.debt-subcarousel-row {
+  display: flex;
+  flex-direction: row;
+  gap: 1.2rem;
+  overflow-x: auto;
+  overflow-y: visible;
+  white-space: nowrap;
+  align-items: stretch;
+  padding: 0.3rem 0 0.4rem 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.debt-subcarousel-row::-webkit-scrollbar {
+  display: none;
+}
+.debtCatFrame {
+  flex: 0 0 auto;
+  min-width: 140px;
+  max-width: 160px;
+  text-align: center;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.debtCatFrame img {
+  pointer-events: none;
+}
+.debtCatFrame[data-selected="true"][data-mode="pay"] {
+  border-color: #dc143c !important;
+  box-shadow: 0 0 8px #dc143c55 !important;
+}
+.debtCatFrame[data-selected="true"][data-mode="collect"] {
+  border-color: #19a43c !important;
+  box-shadow: 0 0 8px #19a43c55 !important;
+}
+.debtCatControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  margin-top: 0.25em;
+  min-height: 32px;
+}
+.debtCatControls button {
+  flex: 0 0 auto;
+}
+@media screen and (max-width: 620px) {
+  .debtCatFrame {
+    min-width: 120px;
+    max-width: 130px;
+  }
+  .debt-group-title {
+    font-size: 1.05rem;
+  }
 }

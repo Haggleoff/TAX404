@@ -8,6 +8,13 @@ let disallowedNormalCards = [];
 const debtCategories = [
   "Haggie", "Stomp&Bray", "Lawffy", "Finnley", "Hoobert", "Droolski", "Vinnie", "Twiggles", "Mav", "Clauseby", "Buckley", "Bugsy", "Wiggy", "Squeak", "Beebo", "Wally", "Tillie", "Moozy"
 ];
+
+const debtCategoryGroups = {
+  "Money": ["Haggie"],
+  "Power Cards": ["Stomp&Bray","Lawffy","Finnley","Hoobert","Droolski","Vinnie","Twiggles"],
+  "Normal Cards": ["Mav","Clauseby","Buckley","Bugsy","Wiggy","Squeak","Beebo","Wally","Tillie","Moozy"]
+};
+
 function getImageName(name) {
   return `Characters/${name.toLowerCase().replace(/&/g, "-").replace(/ /g, "-")}.png`;
 }
@@ -46,8 +53,8 @@ document.getElementById("playerForm").addEventListener("submit", function(e) {
     tax: 0
   }));
   disallowedNormalCards = Array(players.length).fill(0);
-  debts = Array(players.length).fill().map((_, i) =>
-    Array(players.length).fill().map((_, j) => {
+  debts = Array(players.length).fill().map(() =>
+    Array(players.length).fill().map(() => {
       let obj = {};
       debtCategories.forEach(cat => obj[cat] = 0);
       return obj;
@@ -65,23 +72,12 @@ document.getElementById("playerForm").addEventListener("submit", function(e) {
   }, true, "Yes", "No", true);
 });
 
-function calculateOutstandingDebts(playerIdx) {
-  let totalDebts = 0;
-  for (let i = 0; i < players.length; i++) {
-    if (i === playerIdx) continue;
-    totalDebts += debtCategories.reduce((sum, cat) => sum + (debts[playerIdx][i][cat] || 0), 0);
-  }
-  return totalDebts;
-}
-
 function calculateRedGreenTotals(playerIdx) {
-  // Red (sum of all debts owed by playerIdx to others)
   let totalRed = 0;
   for (let i = 0; i < players.length; i++) {
     if (i === playerIdx) continue;
     totalRed += debtCategories.reduce((sum, cat) => sum + (debts[playerIdx][i][cat] || 0), 0);
   }
-  // Green (sum of all debts owed to playerIdx by others)
   let totalGreen = 0;
   for (let i = 0; i < players.length; i++) {
     if (i === playerIdx) continue;
@@ -90,7 +86,6 @@ function calculateRedGreenTotals(playerIdx) {
   return { totalRed, totalGreen };
 }
 
-// Track donation state for current turn globally
 let normalDonated = 0;
 let powerDonated = 0;
 let tempProgress = 0;
@@ -102,7 +97,6 @@ function resetDonationState() {
 }
 
 function showPlayerCards() {
-  // Reset donation state for the new turn
   resetDonationState();
   let cards = '';
   for (let i = 0; i < players.length; i++) {
@@ -120,10 +114,9 @@ function showPlayerCards() {
             <span>Tax Breaks Earned:</span>
             <span class="player-card-breaks-num">${player.streaks + player.powerCards}</span>
           </div>
-          <div style="margin: 0.5rem 0; font-size:1rem; font-family:'Lilita One',cursive; display:flex; align-items:center; justify-content:center; gap:0.7em;">
-            <span style="font-weight:bold; color:#dc143c;">${totalRed}</span>
-            <span style="font-weight:normal; color:#f1f1f1;">Outstanding Debts</span>
-            <span style="font-weight:bold; color:#19a43c;">${totalGreen}</span>
+          <div style="margin:0.5rem 0; font-size:0.9rem; font-family:'Lilita One',cursive; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25em;">
+            <span style="color:#f1f1f1;">Debt Owed: <span style="font-weight:bold; color:#dc143c;">${totalRed}</span></span>
+            <span style="color:#f1f1f1;">Collect Debt: <span style="font-weight:bold; color:#19a43c;">${totalGreen}</span></span>
           </div>
           <div class="player-card-actions">
             <button class="card-btn donate-btn" onclick="donateAction(${i})">Log</button>
@@ -161,16 +154,12 @@ function setupTimerClickHandler() {
   setTimeout(() => {
     const timerDiv = document.querySelector('.player-card.active .player-card-timer');
     if (timerDiv) {
-      timerDiv.onclick = function() {
-        handleTimerClick();
-      }
+      timerDiv.onclick = handleTimerClick;
     }
     const calcTimerDiv = document.getElementById('calculatorTimerDisplay');
     if (calcTimerDiv) {
       calcTimerDiv.style.cursor = 'pointer';
-      calcTimerDiv.onclick = function() {
-        handleTimerClick();
-      }
+      calcTimerDiv.onclick = handleTimerClick;
     }
   }, 0);
 }
@@ -199,7 +188,7 @@ function setupPlayerCardClickHandler() {
         if (e.target.closest('.card-btn')) return;
         if (currentPlayerIndex === i) return;
         currentPlayerIndex = i;
-        resetDonationState(); // Reset for new active player
+        resetDonationState();
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -234,7 +223,7 @@ function setupScrollToSetActivePlayer() {
       });
       if (minIndex !== currentPlayerIndex) {
         currentPlayerIndex = minIndex;
-        resetDonationState(); // Reset for new active player
+        resetDonationState();
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -247,11 +236,11 @@ function setupScrollToSetActivePlayer() {
       scrollTimeout = setTimeout(() => {
         const activeCard = cards[currentPlayerIndex];
         if (activeCard && row) {
-          const rowRect = row.getBoundingClientRect();
+          const rowRect2 = row.getBoundingClientRect();
           const activeRect = activeCard.getBoundingClientRect();
           const scrollLeft = row.scrollLeft +
             (activeRect.left + activeRect.width / 2) -
-            (rowRect.left + rowRect.width / 2);
+            (rowRect2.left + rowRect2.width / 2);
           row.scrollTo({ left: scrollLeft, behavior: "smooth" });
         }
       }, 200);
@@ -262,7 +251,7 @@ function setupScrollToSetActivePlayer() {
 function scrollToActiveCard() {
   setTimeout(() => {
     const row = document.getElementById("playerCardsRow");
-    const active = row.querySelector(".player-card.active");
+    const active = row ? row.querySelector(".player-card.active") : null;
     if (active && row) {
       const rowRect = row.getBoundingClientRect();
       const activeRect = active.getBoundingClientRect();
@@ -363,6 +352,8 @@ function loadCalculator() {
     let totalStreaksThisTurn = streaksThisTurn;
     let taxBreaksPreview = players[currentPlayerIndex].streaks + players[currentPlayerIndex].powerCards + powerDonated + totalStreaksThisTurn;
 
+    let { totalRed, totalGreen } = calculateRedGreenTotals(currentPlayerIndex);
+
     let timerHtml = `
       <div id="calculatorTimerWrapper">
         <span id="calculatorTimerDisplay" class="player-card-timer" style="cursor:pointer;">${timeLeft}</span>
@@ -388,19 +379,23 @@ function loadCalculator() {
     let debtsGridHtml = '';
     if (players.length > 1) {
       debtsGridHtml += `<div style="margin-top:0.5rem;">
-        <h3 class="lilita" style="color:#fff; font-size:1.28rem; margin-bottom:0.45rem; font-weight:normal;">Outstanding Debts</h3>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.95rem;">`;
+        <h3 class="lilita" style="color:#fff; font-size:1.15rem; margin-bottom:0.3rem; font-weight:normal;">Outstanding Debts</h3>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:0.25em; margin-bottom:0.6rem; font-family:'Lilita One',cursive; font-size:0.9rem;">
+          <span style="color:#f1f1f1;">Debt Owed: <span style="color:#dc143c; font-weight:bold;">${totalRed}</span></span>
+            <span style="color:#f1f1f1;">Collect Debt: <span style="color:#19a43c; font-weight:bold;">${totalGreen}</span></span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0.95rem;">`;
       for (let i = 0; i < players.length; i++) {
         if (i === currentPlayerIndex) continue;
         let payAmt = debtCategories.reduce((sum, cat) => sum + (debts[currentPlayerIndex][i][cat] || 0), 0);
         let collectAmt = debtCategories.reduce((sum, cat) => sum + (debts[i][currentPlayerIndex][cat] || 0), 0);
         debtsGridHtml += `
           <div class="debtsGridCell" data-debtor="${currentPlayerIndex}" data-creditor="${i}"
-            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal; position:relative;">
-            <div style="font-size:1.13rem; color:#d4af7f; margin-bottom:0.25rem;">${players[i].name}</div>
-            <div style="display:flex; align-items:center; justify-content:center; gap:0.65em; margin-bottom:0.18rem;">
-              <span style="font-weight:bold; color:#dc143c; font-size:1.13em;">${payAmt}</span>
-              <span style="font-weight:bold; color:#19a43c; font-size:1.13em;">${collectAmt}</span>
+            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.7rem 0.55rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal; position:relative;">
+            <div style="font-size:1.02rem; color:#d4af7f; margin-bottom:0.15rem;">${players[i].name}</div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:0.25em; font-size:0.78rem;">
+              <span style="color:#f1f1f1;">Debt Owed: <span style="color:#dc143c; font-weight:bold; font-size:0.95em;">${payAmt}</span></span>
+              <span style="color:#f1f1f1;">Collect Debt: <span style="color:#19a43c; font-weight:bold; font-size:0.95em;">${collectAmt}</span></span>
             </div>
           </div>
         `;
@@ -490,9 +485,9 @@ function loadCalculator() {
   updateDisplay();
 }
 
-// Outstanding Debts Popup, active player's perspective, only record if category selected
+/* Selection state */
 let selectedCategory = null;
-let selectedType = "pay"; // "pay" or "collect"
+let selectedType = "pay"; // pay => Debt Owed, collect => Collect Debt
 
 function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   const activeIdx = currentPlayerIndex;
@@ -500,49 +495,62 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   const otherName = players[otherIdx].name;
   const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
   const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
-  let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Outstanding Debts with ${otherName}</h2>`;
 
-  popupHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:1rem; margin-bottom:1rem;">`;
-  debtCategories.forEach(cat => {
-    const payAmt = debts[activeIdx][otherIdx][cat] || 0;
-    const collectAmt = debts[otherIdx][activeIdx][cat] || 0;
+  let popupHtml = `
+    <h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.4rem;">Outstanding Debts with ${otherName}</h2>
+    <div style="font-size:0.85rem; color:#bbb; margin-bottom:0.6rem; text-align:left; line-height:1.3;">
+      Tap a card to select it. Tap again to toggle between <span style="color:#dc143c;">Debt Owed (Red)</span> and <span style="color:#19a43c;">Collect Debt (Green)</span>.
+      Use + / - to adjust ONLY when highlighted.
+    </div>
+  `;
 
-    let borderColor = "#d4af7f60";
-    let shadowColor = "#0002";
-    let isSelected = selectedCategory === cat;
-    if (isSelected && selectedType === "pay") {
-      borderColor = "#dc143c";
-      shadowColor = "#dc143c88";
-    } else if (isSelected && selectedType === "collect") {
-      borderColor = "#19a43c";
-      shadowColor = "#19a43c88";
-    }
-    let frameStyle = `background:#232323; border-radius:12px; box-shadow:0 2px 8px ${shadowColor}; padding:0.5rem; border:3px solid ${borderColor}; cursor:pointer; position:relative;`;
+  Object.keys(debtCategoryGroups).forEach(groupName => {
+    popupHtml += `<div class="debt-group-block">
+      <h3 class="debt-group-title">${groupName}</h3>
+      <div class="debt-subcarousel">
+        <div class="debt-subcarousel-row" data-group="${groupName}">
+    `;
+    debtCategoryGroups[groupName].forEach(cat => {
+      const payAmt = debts[activeIdx][otherIdx][cat] || 0;
+      const collectAmt = debts[otherIdx][activeIdx][cat] || 0;
+      let isSelected = selectedCategory === cat;
+      let borderColor = isSelected
+        ? (selectedType === "pay" ? "#dc143c" : "#19a43c")
+        : "#d4af7f60";
+      let shadowColor = isSelected
+        ? (selectedType === "pay" ? "#dc143c55" : "#19a43c55")
+        : "#0002";
+
+      popupHtml += `
+        <div class="debtCatFrame" data-cat="${cat}" data-selected="${isSelected}" data-mode="${isSelected ? selectedType : ''}"
+             style="background:#232323; border-radius:12px; padding:0.55rem 0.55rem 0.6rem; border:3px solid ${borderColor}; box-shadow:0 2px 8px ${shadowColor}; cursor:pointer; position:relative;">
+          <span class="debtPayVal" style="position:absolute; top:0.5em; left:0.6em; font-weight:bold; color:#dc143c; font-size:0.95em; z-index:1;">${payAmt}</span>
+          <span class="debtCollectVal" style="position:absolute; top:0.5em; right:0.6em; font-weight:bold; color:#19a43c; font-size:0.95em; z-index:1;">${collectAmt}</span>
+          <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+            <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
+          </div>
+          <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.25rem; font-size:0.95rem; gap:0.5em; text-align:center;">
+            <span style="flex:1; text-align:center; width:100%;">${cat}</span>
+          </div>
+          <div class="debtCatControls">
+            ${
+              isSelected
+                ? `<button class="changeDebtBtn" data-cat="${cat}" data-type="minus" style="${minusBtnStyle}">-</button>
+                   <button class="changeDebtBtn" data-cat="${cat}" data-type="plus" style="${plusBtnStyle}">+</button>`
+                : ``
+            }
+          </div>
+        </div>
+      `;
+    });
 
     popupHtml += `
-      <div class="debtCatFrame" data-cat="${cat}" style="${frameStyle}">
-        <span style="position:absolute; top:0.5em; left:0.7em; font-weight:bold; color:#dc143c; font-size:1.08em; z-index:1;">${payAmt}</span>
-        <span style="position:absolute; top:0.5em; right:0.7em; font-weight:bold; color:#19a43c; font-size:1.08em; z-index:1;">${collectAmt}</span>
-        <div style="position:relative;">
-          <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
-        </div>
-        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.3rem; font-size:1rem; gap:0.5em; text-align:center;">
-          <span style="flex:1; text-align:center; width:100%;">${cat}</span>
-        </div>
-        <div style="display:flex; align-items:center; justify-content:center; gap:0.5em; margin-top:0.2em; min-height:32px;">
-          ${
-            isSelected
-              ? `<button class="changeDebtBtn" data-cat="${cat}" style="${minusBtnStyle}" data-type="minus">-</button>
-                 <button class="changeDebtBtn" data-cat="${cat}" style="${plusBtnStyle}" data-type="plus">+</button>`
-              : `<div style="width:32px;height:32px;display:inline-block;"></div>
-                 <div style="width:32px;height:32px;display:inline-block;"></div>`
-          }
         </div>
       </div>
-    `;
+    </div>`;
   });
 
-  popupHtml += `</div>
+  popupHtml += `
     <button id="closeDebtsPopupBtn" style="margin-top:0.2rem; background:#d4af7f; color:#232323; border-radius:8px; border:none; padding:0.65rem 1.2rem; font-family:'Lilita One',cursive; font-size:1.05rem; cursor:pointer;">Close</button>
   `;
 
@@ -554,38 +562,82 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       loadCalculator();
     };
 
-    // Category click only toggles pay/collect if you click the frame itself and NOT the buttons
+    // Frame selection without re-render (avoid jitter)
     document.querySelectorAll('.debtCatFrame').forEach(frame => {
-      frame.addEventListener('click', function(e) {
+      frame.addEventListener('click', e => {
         if (e.target.classList.contains('changeDebtBtn')) return;
-        const cat = frame.getAttribute("data-cat");
+        const cat = frame.getAttribute('data-cat');
         if (selectedCategory === cat) {
-          selectedType = selectedType === "pay" ? "collect" : "pay";
+          selectedType = (selectedType === "pay") ? "collect" : "pay";
         } else {
+          selectedCategory = cat;
           selectedType = "pay";
         }
-        selectedCategory = cat;
-        showOutstandingDebtsPopup(activeIdx, otherIdx);
+        applyDebtSelectionStyles(activeIdx, otherIdx);
       });
     });
 
+    // Change buttons (event delegation)
     document.querySelectorAll('.changeDebtBtn').forEach(btn => {
-      btn.onclick = function(e) {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
         const cat = btn.getAttribute('data-cat');
-        let mode = selectedType;
-        let delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
-        // Only record if this category is selected!
-        if (selectedCategory === cat) {
-          if (mode === "pay") {
+        if (selectedCategory !== cat) return;
+        const delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
+        if (selectedType === "pay") {
+          debts[activeIdx][otherIdx][cat] = Math.max(0, (debts[activeIdx][otherIdx][cat] || 0) + delta);
+        } else {
+          debts[otherIdx][activeIdx][cat] = Math.max(0, (debts[otherIdx][activeIdx][cat] || 0) + delta);
+        }
+        updateDebtAmounts(activeIdx, otherIdx, cat);
+      });
+    });
+  });
+}
+
+function applyDebtSelectionStyles(activeIdx, otherIdx) {
+  document.querySelectorAll('.debtCatFrame').forEach(frame => {
+    const cat = frame.getAttribute('data-cat');
+    const isSel = (cat === selectedCategory);
+    frame.setAttribute('data-selected', isSel ? 'true' : 'false');
+    frame.setAttribute('data-mode', isSel ? selectedType : '');
+    // Update controls
+    const controls = frame.querySelector('.debtCatControls');
+    if (!controls) return;
+    if (isSel) {
+      const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+      const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+      controls.innerHTML = `
+        <button class="changeDebtBtn" data-cat="${cat}" data-type="minus" style="${minusBtnStyle}">-</button>
+        <button class="changeDebtBtn" data-cat="${cat}" data-type="plus" style="${plusBtnStyle}">+</button>
+      `;
+      controls.querySelectorAll('.changeDebtBtn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
+            if (selectedType === "pay") {
             debts[activeIdx][otherIdx][cat] = Math.max(0, (debts[activeIdx][otherIdx][cat] || 0) + delta);
           } else {
             debts[otherIdx][activeIdx][cat] = Math.max(0, (debts[otherIdx][activeIdx][cat] || 0) + delta);
           }
-        }
-        showOutstandingDebtsPopup(activeIdx, otherIdx);
-      };
-    });
+          updateDebtAmounts(activeIdx, otherIdx, cat);
+        });
+      });
+    } else {
+      controls.innerHTML = '';
+    }
+    // Border / shadow (CSS attribute selectors handle main styling)
   });
+}
+
+function updateDebtAmounts(activeIdx, otherIdx, cat) {
+  // Update specified frame numbers
+  document.querySelectorAll(`.debtCatFrame[data-cat="${cat}"]`).forEach(frame => {
+    frame.querySelector('.debtPayVal').textContent = debts[activeIdx][otherIdx][cat] || 0;
+    frame.querySelector('.debtCollectVal').textContent = debts[otherIdx][activeIdx][cat] || 0;
+  });
+  // Also update the player cards / calculator outstanding display if open
+  // (We do not rebuild popup, so no jitter)
 }
 
 function customHTMLPopupNoExtraCloseBtn(message, html, callback) {
@@ -617,9 +669,7 @@ function confirmTurnWithBlocks(normalDonatedArg, powerDonatedArg) {
   nextPlayer();
 }
 
-// --- CHANGE STARTS HERE ---
 function showEndgame() {
-  // Gather list of debtors who owe red debt and to whom
   let debtors = [];
   for (let i = 0; i < players.length; i++) {
     let owedTo = [];
@@ -647,7 +697,7 @@ function showEndgame() {
         <span style="font-size:0.96rem;"></span>
         <form id="endgameDebtsChecklist" style="margin-top:0.5rem;">
     `;
-    debtors.forEach((debtor, idx) => {
+    debtors.forEach((debtor) => {
       let owedList = debtor.owedTo.map(o => `<span style="color:#d4af7f;">${o.name}</span> (${o.amount})`).join(", ");
       checkboxesHtml += `
         <label style="display:block; margin-bottom:1.2em; cursor:pointer;">
@@ -671,19 +721,16 @@ function showEndgame() {
         showPlayerCards();
       }
     },
-    true, // isHtml
-    "Yes", "No", false // okOnly
+    true,
+    "Yes", "No", false
   );
 
-  // After popup is rendered, setup checkbox logic
   setTimeout(() => {
     if (debtors.length > 0) {
       const yesBtn = document.getElementById("customPopupYes");
-      // Save default style to restore later
       if (!yesBtn.hasAttribute('data-default-style')) {
         yesBtn.setAttribute('data-default-style', yesBtn.getAttribute('style') || '');
       }
-      // Styles for greyed out button
       function applyGreyedOut(btn) {
         btn.disabled = true;
         btn.style.background = '#777';
@@ -701,20 +748,14 @@ function showEndgame() {
       const debtCheckboxes = Array.from(document.querySelectorAll('.endgame-debt-checkbox'));
       function checkAll() {
         const allChecked = debtCheckboxes.every(chk => chk.checked);
-        if (allChecked) {
-          restoreButtonStyle(yesBtn);
-        } else {
-          applyGreyedOut(yesBtn);
-        }
+        if (allChecked) restoreButtonStyle(yesBtn);
+        else applyGreyedOut(yesBtn);
       }
-      debtCheckboxes.forEach(chk => {
-        chk.addEventListener('change', checkAll);
-      });
+      debtCheckboxes.forEach(chk => chk.addEventListener('change', checkAll));
       checkAll();
     }
   }, 0);
 }
-// --- CHANGE ENDS HERE ---
 
 function loadEndgame() {
   if (timerInterval) clearInterval(timerInterval);
