@@ -74,7 +74,7 @@ const inGameTutorialSteps = [
   {
     title: "Timer Control",
     target: () => document.querySelector(".player-card.active .player-card-timer"),
-    text: "You can tap the big number (the timer) to pause or resume it. If it hits zero, the turn is frozen until restarted."
+    text: "You can tap the big number (the timer) to pause or resume it. When the timer hits zero, the players’ turn has ended. Only transactions in progress and required moves may be made after this. If, for some reason, you need to restart the timer, after it hits zero, just tap it again."
   },
   {
     title: "Tax Break Progress",
@@ -621,7 +621,7 @@ function loadCalculator() {
         <label>Normal Cards Donated</label>
         <div class="donate-row">
           <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
-            <div class="donate-blocks-container">${blocks}</div>
+          <div class="donate-blocks-container">${blocks}</div>
           <button class="donate-btn-shape" id="plusNormal" style="${plusBtnStyle}" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''}>+</button>
         </div>
         <span class="streak-helper">Each streak (5 cards) is a Tax Break Earned</span>
