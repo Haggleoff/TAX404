@@ -617,15 +617,103 @@ function confirmTurnWithBlocks(normalDonatedArg, powerDonatedArg) {
   nextPlayer();
 }
 
+// --- CHANGE STARTS HERE ---
 function showEndgame() {
-  customPopup("Is the game over? Ready for final taxes?", function(confirm) {
-    if (confirm) {
-      loadEndgame();
-    } else {
-      showPlayerCards();
+  // Gather list of debtors who owe red debt and to whom
+  let debtors = [];
+  for (let i = 0; i < players.length; i++) {
+    let owedTo = [];
+    for (let j = 0; j < players.length; j++) {
+      if (i === j) continue;
+      let amount = debtCategories.reduce((sum, cat) => sum + (debts[i][j][cat] || 0), 0);
+      if (amount > 0) {
+        owedTo.push({ name: players[j].name, amount });
+      }
     }
-  });
+    if (owedTo.length > 0) {
+      debtors.push({
+        index: i,
+        name: players[i].name,
+        owedTo: owedTo
+      });
+    }
+  }
+
+  let checkboxesHtml = "";
+  if (debtors.length > 0) {
+    checkboxesHtml += `
+      <div style="margin-bottom:1rem; text-align:left;">
+        <strong style="color:#dc143c;">Settle all Outstanding Debts before filing taxes.</strong><br>
+        <span style="font-size:0.96rem;"></span>
+        <form id="endgameDebtsChecklist" style="margin-top:0.5rem;">
+    `;
+    debtors.forEach((debtor, idx) => {
+      let owedList = debtor.owedTo.map(o => `<span style="color:#d4af7f;">${o.name}</span> (${o.amount})`).join(", ");
+      checkboxesHtml += `
+        <div style="display:flex; align-items:center; gap:0.7em; margin-bottom:1.2em;">
+          <input type="checkbox" class="endgame-debt-checkbox" data-debtor="${debtor.index}" id="endgameDebtChk${debtor.index}" style="margin-right:0.5em;">
+          <span style="color:#dc143c; font-weight:bold;">${debtor.name}</span> owes: ${owedList}
+        </div>
+      `;
+    });
+    checkboxesHtml += `</form></div>`;
+  }
+
+  let popupMsg = `${checkboxesHtml}<span>Is the game over? Ready for final taxes?</span>`;
+
+  customPopup(
+    popupMsg,
+    function(confirm) {
+      if (confirm) {
+        loadEndgame();
+      } else {
+        showPlayerCards();
+      }
+    },
+    true, // isHtml
+    "Yes", "No", false // okOnly
+  );
+
+  // After popup is rendered, setup checkbox logic
+  setTimeout(() => {
+    if (debtors.length > 0) {
+      const yesBtn = document.getElementById("customPopupYes");
+      // Save default style to restore later
+      if (!yesBtn.hasAttribute('data-default-style')) {
+        yesBtn.setAttribute('data-default-style', yesBtn.getAttribute('style') || '');
+      }
+      // Styles for greyed out button
+      function applyGreyedOut(btn) {
+        btn.disabled = true;
+        btn.style.background = '#777';
+        btn.style.color = '#ccc';
+        btn.style.cursor = 'not-allowed';
+      }
+      function restoreButtonStyle(btn) {
+        btn.disabled = false;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.cursor = '';
+        btn.setAttribute('style', btn.getAttribute('data-default-style'));
+      }
+      applyGreyedOut(yesBtn);
+      const debtCheckboxes = Array.from(document.querySelectorAll('.endgame-debt-checkbox'));
+      function checkAll() {
+        const allChecked = debtCheckboxes.every(chk => chk.checked);
+        if (allChecked) {
+          restoreButtonStyle(yesBtn);
+        } else {
+          applyGreyedOut(yesBtn);
+        }
+      }
+      debtCheckboxes.forEach(chk => {
+        chk.addEventListener('change', checkAll);
+      });
+      checkAll();
+    }
+  }, 0);
 }
+// --- CHANGE ENDS HERE ---
 
 function loadEndgame() {
   if (timerInterval) clearInterval(timerInterval);
