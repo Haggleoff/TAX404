@@ -8,103 +8,87 @@
 </head>
 <body>
 <!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
-
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
-
-</head>
-<body>
-<!-- partial:index.partial.html -->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Haggleoff TAX404</title>
-  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32">
-  <link rel="stylesheet" href="./style.css">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="TAX404 - A satirical Haggleoff tax & donation tracker game module." />
+  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32" />
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Roboto&display=swap" rel="stylesheet" />
-  <!-- Confetti library for endgame celebration -->
+  <link rel="stylesheet" href="./style.css" />
+  <!-- Confetti for endgame celebration -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
-  <!-- 🛡️ Legal Disclaimer -->
+  <!-- Legal Disclaimer -->
   <div id="disclaimerOverlay" class="dimOverlay" style="display: flex;">
-    <div class="popupBox">
-      <h2 class="lilita" style="color: #d4af7f;">Legal Disclaimer</h2>
-      <p style="text-align: left;">
+    <div class="popupBox" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
+      <h2 id="disclaimerTitle" class="lilita" style="color: #d4af7f;">Legal Disclaimer</h2>
+      <p style="text-align: left; line-height:1.45; font-size:0.95rem;">
         TAX404 is not a real tax software. It is a fictional component of Haggleoff’s card game experience.<br><br>
         Haggleoff LLC and TAX404 do not offer financial, accounting, legal, or tax advice through this platform. Use of this software should be considered purely satirical and recreational.<br><br>
         By continuing, you acknowledge that this experience is for gameplay purposes only and does not constitute financial guidance.
       </p>
-      <button onclick="dismissDisclaimer()">I Understand</button>
+      <button onclick="dismissDisclaimer()" aria-label="Acknowledge disclaimer and continue">I Understand</button>
     </div>
   </div>
 
-  <!-- 🏢 Header -->
-  <div id="siteHeader">
-    <a href="https://haggleoff.com" target="_blank">
+  <!-- Header -->
+  <header id="siteHeader">
+    <a href="https://haggleoff.com" target="_blank" rel="noopener">
       <img id="siteLogo" src="logo.png" alt="Haggleoff Logo" />
     </a>
     <h1 id="taxLogoText" class="lilita flicker-start" style="color: #d4af7f;">TAX404</h1>
-    <p id="headerTagline" style="font-style: italic; font-family: 'Roboto'; color: #d9d9d9; margin-top: -0.5rem; margin-bottom: 0.5rem;">
+    <p id="headerTagline">
       Mediocre tax software courtesy of Haggleoff
     </p>
-  </div>
+  </header>
 
-  <!-- 🎲 Player Setup -->
-  <div id="playerSetupBox" style="display: none;">
-    <form id="playerForm" class="calculatorBox">
+  <!-- Player Setup -->
+  <section id="playerSetupBox" style="display: none;" aria-label="Player setup form">
+    <form id="playerForm" class="calculatorBox" autocomplete="off">
       <h2 class="lilita" style="color: #d4af7f;">Enter Player Names</h2>
       <div id="playerInputFields">
-        <input type="text" name="playerName" placeholder="Player 1 (required)" required />
+        <input type="text" name="playerName" placeholder="Player 1 (required)" aria-label="Player 1 name" required />
       </div>
-      <button type="button" onclick="addPlayerField()">+ Add Player</button>
+      <button type="button" onclick="addPlayerField()" aria-label="Add another player input field">+ Add Player</button>
       <br><br>
-      <button type="submit">Start Game</button>
+      <button type="submit" aria-label="Start the game with entered players">Start Game</button>
     </form>
-  </div>
+  </section>
 
-  <!-- 🧮 Main Gameplay -->
-  <div id="mainGameContainer"></div>
+  <!-- Main Game / Dynamic Content -->
+  <main id="mainGameContainer" aria-live="polite"></main>
 
-  <!-- 🪄 Popup Overlays -->
-  <div id="customPopupOverlay" class="dimOverlay">
-    <div class="popupBox">
+  <!-- Popup Overlay -->
+  <div id="customPopupOverlay" class="dimOverlay" aria-hidden="true">
+    <div class="popupBox" role="dialog" aria-modal="true">
       <div id="customPopupMessage"></div>
       <button id="customPopupYes">OK</button>
       <button id="customPopupNo">No</button>
     </div>
   </div>
 
-  <!-- 🖋️ Footer -->
-  <div id="siteFooter">
+  <!-- Footer -->
+  <footer id="siteFooter">
     <p>
       Copyright © 2025 Haggleoff LLC. All rights reserved.<br />
       Haggleoff, the V emblem, the Haggleoff logo, and the Tax404 logo are trademarks of Haggleoff LLC.
     </p>
-  </div>
+  </footer>
 
-  <!-- 🧠 Scripts -->
+  <!-- Core Script -->
   <script src="script.js"></script>
   <script>
     window.addEventListener("load", function () {
       const logo = document.getElementById("taxLogoText");
       logo.classList.remove("flicker-start");
-      setTimeout(() => logo.classList.add("flicker-start"), 500);
+      setTimeout(() => logo.classList.add("flicker-start"), 480);
 
-      // Add Player 2 input by default, required
+      // Add Player 2 input by default
       const container = document.getElementById("playerInputFields");
       if (container.querySelectorAll("input").length === 1) {
         const input = document.createElement("input");
@@ -112,6 +96,7 @@
         input.name = "playerName";
         input.placeholder = "Player 2 (required)";
         input.required = true;
+        input.setAttribute('aria-label', 'Player 2 name');
         container.appendChild(input);
       }
     });
@@ -119,6 +104,8 @@
     function dismissDisclaimer() {
       document.getElementById("disclaimerOverlay").style.display = "none";
       document.getElementById("playerSetupBox").style.display = "block";
+      const firstInput = document.querySelector("#playerInputFields input");
+      if (firstInput) firstInput.focus();
     }
 
     function addPlayerField() {
@@ -136,19 +123,11 @@
         input.placeholder = `Player ${count} (optional)`;
         input.required = false;
       }
+      input.setAttribute('aria-label', `Player ${count} name`);
       container.appendChild(input);
+      input.focus();
     }
   </script>
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
 </body>
 </html>
 <!-- partial -->

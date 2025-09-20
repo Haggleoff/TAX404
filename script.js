@@ -75,13 +75,11 @@ function calculateOutstandingDebts(playerIdx) {
 }
 
 function calculateRedGreenTotals(playerIdx) {
-  // Red (sum of all debts owed by playerIdx to others)
   let totalRed = 0;
   for (let i = 0; i < players.length; i++) {
     if (i === playerIdx) continue;
     totalRed += debtCategories.reduce((sum, cat) => sum + (debts[playerIdx][i][cat] || 0), 0);
   }
-  // Green (sum of all debts owed to playerIdx by others)
   let totalGreen = 0;
   for (let i = 0; i < players.length; i++) {
     if (i === playerIdx) continue;
@@ -90,7 +88,6 @@ function calculateRedGreenTotals(playerIdx) {
   return { totalRed, totalGreen };
 }
 
-// Track donation state for current turn globally
 let normalDonated = 0;
 let powerDonated = 0;
 let tempProgress = 0;
@@ -102,7 +99,6 @@ function resetDonationState() {
 }
 
 function showPlayerCards() {
-  // Reset donation state for the new turn
   resetDonationState();
   let cards = '';
   for (let i = 0; i < players.length; i++) {
@@ -163,6 +159,7 @@ function setupTimerClickHandler() {
     if (timerDiv) {
       timerDiv.onclick = function() {
         handleTimerClick();
+        playClickFeedback(); // subtle feedback on tap
       }
     }
     const calcTimerDiv = document.getElementById('calculatorTimerDisplay');
@@ -170,6 +167,7 @@ function setupTimerClickHandler() {
       calcTimerDiv.style.cursor = 'pointer';
       calcTimerDiv.onclick = function() {
         handleTimerClick();
+        playClickFeedback();
       }
     }
   }, 0);
@@ -199,7 +197,7 @@ function setupPlayerCardClickHandler() {
         if (e.target.closest('.card-btn')) return;
         if (currentPlayerIndex === i) return;
         currentPlayerIndex = i;
-        resetDonationState(); // Reset for new active player
+        resetDonationState();
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -208,6 +206,7 @@ function setupPlayerCardClickHandler() {
         startTimer();
         updatePopupTimerDisplay();
         setupTimerClickHandler();
+        playClickFeedback();
       };
     });
   }, 0);
@@ -234,7 +233,7 @@ function setupScrollToSetActivePlayer() {
       });
       if (minIndex !== currentPlayerIndex) {
         currentPlayerIndex = minIndex;
-        resetDonationState(); // Reset for new active player
+        resetDonationState();
         if (timerInterval) clearInterval(timerInterval);
         timeLeft = 60;
         timerRunningState = true;
@@ -249,7 +248,7 @@ function setupScrollToSetActivePlayer() {
         if (activeCard && row) {
           const rowRect = row.getBoundingClientRect();
           const activeRect = activeCard.getBoundingClientRect();
-          const scrollLeft = row.scrollLeft +
+            const scrollLeft = row.scrollLeft +
             (activeRect.left + activeRect.width / 2) -
             (rowRect.left + rowRect.width / 2);
           row.scrollTo({ left: scrollLeft, behavior: "smooth" });
@@ -321,6 +320,7 @@ function updateCalculatorTimerDisplay() {
 function donateAction(playerIndex) {
   if (playerIndex !== currentPlayerIndex) return;
   loadCalculator();
+  playClickFeedback();
 }
 
 function tookCharityAction(playerIndex) {
@@ -370,8 +370,8 @@ function loadCalculator() {
     `;
     let buttonContainerStyle = "display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap;";
     let mainBtnStyle = "background:#d4af7f; color:#232323; min-width:110px; border-radius:8px; border:none; font-family:'Lilita One',cursive; font-size:1.05rem; font-weight:normal; cursor:pointer; padding:0.65rem 1.2rem;";
-    let plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
-    let minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+    let plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:40px; height:40px; font-size:1.35rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+    let minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:40px; height:40px; font-size:1.35rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
     let confirmButtonHtml = '';
     let tookCharityButtonHtml = `
       <button id="tookCharityBtn" style="${mainBtnStyle}">Took from Charity</button>
@@ -388,7 +388,7 @@ function loadCalculator() {
     let debtsGridHtml = '';
     if (players.length > 1) {
       debtsGridHtml += `<div style="margin-top:0.5rem;">
-        <h3 class="lilita" style="color:#fff; font-size:1.28rem; margin-bottom:0.45rem; font-weight:normal;">Outstanding Debts</h3>
+        <h3 class="lilita" style="color:#fff; font-size:1.24rem; margin-bottom:0.45rem; font-weight:normal;">Outstanding Debts</h3>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.95rem;">`;
       for (let i = 0; i < players.length; i++) {
         if (i === currentPlayerIndex) continue;
@@ -396,11 +396,11 @@ function loadCalculator() {
         let collectAmt = debtCategories.reduce((sum, cat) => sum + (debts[i][currentPlayerIndex][cat] || 0), 0);
         debtsGridHtml += `
           <div class="debtsGridCell" data-debtor="${currentPlayerIndex}" data-creditor="${i}"
-            style="background:#313131; border:3px solid #d4af7f60; border-radius:14px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal; position:relative;">
-            <div style="font-size:1.13rem; color:#d4af7f; margin-bottom:0.25rem;">${players[i].name}</div>
+            style="background:#313131; border:3px solid #d4af7f60; border-radius:16px; box-shadow:0 4px 16px #0002, 0 0 8px #d4af7f18; padding:0.85rem 0.6rem; text-align:center; cursor:pointer; font-family:'Lilita One',cursive; font-weight:normal; position:relative;">
+            <div style="font-size:1.08rem; color:#d4af7f; margin-bottom:0.25rem;">${players[i].name}</div>
             <div style="display:flex; align-items:center; justify-content:center; gap:0.65em; margin-bottom:0.18rem;">
-              <span style="font-weight:bold; color:#dc143c; font-size:1.13em;">${payAmt}</span>
-              <span style="font-weight:bold; color:#19a43c; font-size:1.13em;">${collectAmt}</span>
+              <span style="font-weight:bold; color:#dc143c; font-size:1.05em;">${payAmt}</span>
+              <span style="font-weight:bold; color:#19a43c; font-size:1.05em;">${collectAmt}</span>
             </div>
           </div>
         `;
@@ -414,18 +414,18 @@ function loadCalculator() {
         <h2 class="player-name">${players[currentPlayerIndex].name}'s Turn</h2>
         <label>Normal Cards Donated</label>
         <div class="donate-row">
-          <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
+          <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''} aria-label="Decrease normal cards donation">-</button>
           <div class="donate-blocks-container">${blocks}</div>
-          <button class="donate-btn-shape" id="plusNormal" style="${plusBtnStyle}" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''}>+</button>
+          <button class="donate-btn-shape" id="plusNormal" style="${plusBtnStyle}" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''} aria-label="Increase normal cards donation">+</button>
         </div>
         <span class="streak-helper">Each streak (5 cards) is a Tax Break Earned</span>
         <label class="power-label">Power Cards or Cash Donated</label>
         <div class="donate-row">
-          <button class="donate-btn-shape" id="minusPower" style="${minusBtnStyle}" ${powerDonated === 0 ? 'disabled' : ''}>-</button>
+          <button class="donate-btn-shape" id="minusPower" style="${minusBtnStyle}" ${powerDonated === 0 ? 'disabled' : ''} aria-label="Decrease power donation">-</button>
           <div class="power-circle-container">
             <div class="power-circle${powerDonated === 0 ? " zero" : ""}">${powerDonated}</div>
           </div>
-          <button class="donate-btn-shape" id="plusPower" style="${plusBtnStyle}" ${powerDonated >= 20 ? 'disabled' : ''}>+</button>
+            <button class="donate-btn-shape" id="plusPower" style="${plusBtnStyle}" ${powerDonated >= 20 ? 'disabled' : ''} aria-label="Increase power donation">+</button>
         </div>
         <p class="player-card-breaks" style="text-align:center; margin-bottom:0.2rem;">Tax Breaks Earned: <span id="taxBreaksPreview">${taxBreaksPreview}</span></p>
         ${debtsGridHtml}
@@ -442,27 +442,32 @@ function loadCalculator() {
       if (normalDonated + tempProgress < 20) {
         normalDonated++;
         updateDisplay();
+        playClickFeedback();
       }
     };
     document.getElementById("minusNormal").onclick = function() {
       if (normalDonated > 0) {
         normalDonated--;
         updateDisplay();
+        playClickFeedback();
       }
     };
     document.getElementById("plusPower").onclick = function() {
       if (powerDonated < 20) {
         powerDonated++;
         updateDisplay();
+        playClickFeedback();
       }
     };
     document.getElementById("minusPower").onclick = function() {
       if (powerDonated > 0) {
         powerDonated--;
         updateDisplay();
+        playClickFeedback();
       }
     };
     document.getElementById("confirmDonationBtn").onclick = function() {
+      playClickFeedback();
       if (normalDonated === 0 && powerDonated === 0) {
         nextPlayer();
       } else {
@@ -474,6 +479,7 @@ function loadCalculator() {
       const tookCharityBtn = document.getElementById("tookCharityBtn");
       if (tookCharityBtn) {
         tookCharityBtn.onclick = function() {
+          playClickFeedback();
           tookCharityAction(currentPlayerIndex);
         };
       }
@@ -484,22 +490,22 @@ function loadCalculator() {
         const debtorIdx = parseInt(cell.getAttribute("data-debtor"));
         const creditorIdx = parseInt(cell.getAttribute("data-creditor"));
         showOutstandingDebtsPopup(debtorIdx, creditorIdx);
+        playClickFeedback();
       };
     });
   }
   updateDisplay();
 }
 
-// Outstanding Debts Popup, active player's perspective, only record if category selected
 let selectedCategory = null;
-let selectedType = "pay"; // "pay" or "collect"
+let selectedType = "pay";
 
 function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   const activeIdx = currentPlayerIndex;
   const otherIdx = creditorIdx;
   const otherName = players[otherIdx].name;
-  const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
-  const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:1.3rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+  const plusBtnStyle = "background:#d4af7f; color:#232323; border:none; border-radius:50%; width:40px; height:40px; font-size:1.35rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
+  const minusBtnStyle = "background:#947c52; color:#fff; border:none; border-radius:50%; width:40px; height:40px; font-size:1.35rem; cursor:pointer; font-family:'Lilita One',cursive; display:inline-flex; align-items:center; justify-content:center;";
   let popupHtml = `<h2 class="lilita" style="color:#d4af7f; font-weight:normal; margin-bottom:0.7rem;">Outstanding Debts with ${otherName}</h2>`;
 
   popupHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:1rem; margin-bottom:1rem;">`;
@@ -517,25 +523,24 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       borderColor = "#19a43c";
       shadowColor = "#19a43c88";
     }
-    let frameStyle = `background:#232323; border-radius:12px; box-shadow:0 2px 8px ${shadowColor}; padding:0.5rem; border:3px solid ${borderColor}; cursor:pointer; position:relative;`;
-
+    let frameStyle = `background:#232323; border-radius:14px; box-shadow:0 2px 8px ${shadowColor}; padding:0.55rem; border:3px solid ${borderColor}; cursor:pointer; position:relative; transition:border .2s, box-shadow .3s;`;
     popupHtml += `
       <div class="debtCatFrame" data-cat="${cat}" style="${frameStyle}">
-        <span style="position:absolute; top:0.5em; left:0.7em; font-weight:bold; color:#dc143c; font-size:1.08em; z-index:1;">${payAmt}</span>
-        <span style="position:absolute; top:0.5em; right:0.7em; font-weight:bold; color:#19a43c; font-size:1.08em; z-index:1;">${collectAmt}</span>
+        <span style="position:absolute; top:0.5em; left:0.6em; font-weight:bold; color:#dc143c; font-size:1.05em; z-index:1;">${payAmt}</span>
+        <span style="position:absolute; top:0.5em; right:0.6em; font-weight:bold; color:#19a43c; font-size:1.05em; z-index:1;">${collectAmt}</span>
         <div style="position:relative;">
-          <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
+          <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:12px; background:#191919; box-shadow:0 1px 3px #0002;">
         </div>
-        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.3rem; font-size:1rem; gap:0.5em; text-align:center;">
+        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.35rem; font-size:0.95rem; gap:0.5em; text-align:center;">
           <span style="flex:1; text-align:center; width:100%;">${cat}</span>
         </div>
-        <div style="display:flex; align-items:center; justify-content:center; gap:0.5em; margin-top:0.2em; min-height:32px;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:0.55em; margin-top:0.25em; min-height:40px;">
           ${
             isSelected
-              ? `<button class="changeDebtBtn" data-cat="${cat}" style="${minusBtnStyle}" data-type="minus">-</button>
-                 <button class="changeDebtBtn" data-cat="${cat}" style="${plusBtnStyle}" data-type="plus">+</button>`
-              : `<div style="width:32px;height:32px;display:inline-block;"></div>
-                 <div style="width:32px;height:32px;display:inline-block;"></div>`
+              ? `<button class="changeDebtBtn" data-cat="${cat}" style="${minusBtnStyle}" data-type="minus" aria-label="Decrease ${cat} debt">-</button>
+                 <button class="changeDebtBtn" data-cat="${cat}" style="${plusBtnStyle}" data-type="plus" aria-label="Increase ${cat} debt">+</button>`
+              : `<div style="width:40px;height:40px;display:inline-block;"></div>
+                 <div style="width:40px;height:40px;display:inline-block;"></div>`
           }
         </div>
       </div>
@@ -543,7 +548,7 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   });
 
   popupHtml += `</div>
-    <button id="closeDebtsPopupBtn" style="margin-top:0.2rem; background:#d4af7f; color:#232323; border-radius:8px; border:none; padding:0.65rem 1.2rem; font-family:'Lilita One',cursive; font-size:1.05rem; cursor:pointer;">Close</button>
+    <button id="closeDebtsPopupBtn" style="margin-top:0.2rem; background:#d4af7f; color:#232323; border-radius:10px; border:none; padding:0.75rem 1.2rem; font-family:'Lilita One',cursive; font-size:1.05rem; cursor:pointer;">Close</button>
   `;
 
   customHTMLPopupNoExtraCloseBtn(`<div></div>`, popupHtml, () => {
@@ -552,9 +557,9 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       selectedCategory = null;
       selectedType = "pay";
       loadCalculator();
+      playClickFeedback();
     };
 
-    // Category click only toggles pay/collect if you click the frame itself and NOT the buttons
     document.querySelectorAll('.debtCatFrame').forEach(frame => {
       frame.addEventListener('click', function(e) {
         if (e.target.classList.contains('changeDebtBtn')) return;
@@ -566,6 +571,7 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
         }
         selectedCategory = cat;
         showOutstandingDebtsPopup(activeIdx, otherIdx);
+        playClickFeedback();
       });
     });
 
@@ -574,7 +580,6 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
         const cat = btn.getAttribute('data-cat');
         let mode = selectedType;
         let delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
-        // Only record if this category is selected!
         if (selectedCategory === cat) {
           if (mode === "pay") {
             debts[activeIdx][otherIdx][cat] = Math.max(0, (debts[activeIdx][otherIdx][cat] || 0) + delta);
@@ -583,6 +588,7 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
           }
         }
         showOutstandingDebtsPopup(activeIdx, otherIdx);
+        playClickFeedback();
       };
     });
   });
@@ -619,7 +625,6 @@ function confirmTurnWithBlocks(normalDonatedArg, powerDonatedArg) {
 
 // --- CHANGE STARTS HERE ---
 function showEndgame() {
-  // Gather list of debtors who owe red debt and to whom
   let debtors = [];
   for (let i = 0; i < players.length; i++) {
     let owedTo = [];
@@ -671,19 +676,16 @@ function showEndgame() {
         showPlayerCards();
       }
     },
-    true, // isHtml
-    "Yes", "No", false // okOnly
+    true,
+    "Yes", "No", false
   );
 
-  // After popup is rendered, setup checkbox logic
   setTimeout(() => {
     if (debtors.length > 0) {
       const yesBtn = document.getElementById("customPopupYes");
-      // Save default style to restore later
       if (!yesBtn.hasAttribute('data-default-style')) {
         yesBtn.setAttribute('data-default-style', yesBtn.getAttribute('style') || '');
       }
-      // Styles for greyed out button
       function applyGreyedOut(btn) {
         btn.disabled = true;
         btn.style.background = '#777';
@@ -927,7 +929,7 @@ function showTaxBreakdown(playerIndex) {
 
   let streaksEarned = p.streaks;
   let donationsDetails = `
-    <ul style="text-align:left;">
+    <ul style="text-align:left; padding-left:1.1rem; margin:0.4rem 0 0.7rem;">
       <li>Normal Cards Donated: ${p.streaks * 5 + p.progress}</li>
       <li>Streaks Earned: ${streaksEarned}</li>
       <li>Power Cards or Cash Donated: ${p.powerCards}</li>
@@ -947,11 +949,11 @@ function showTaxBreakdown(playerIndex) {
       <br>
       <strong style="color:#d4af7f;">Gross Tax:</strong> <span style="color:#d4af7f;">${grossTax}</span><br>
       <strong>Maximum Tax Ceiling:</strong> ${capTax}<br>
-      <span style="font-size:0.98em; color:#888;"><i>A built-in cap that ensures your tax never exceeds 54% of your gross income.</i></span><br>
+      <span style="font-size:0.88em; color:#888;"><i>A built-in cap that ensures your tax never exceeds 54% of your gross income.</i></span><br>
       <strong>Base Tax Applied:</strong> ${baseTax}<br>
       <strong>Deductions from Donations:</strong> ${breaks} (Tax Breaks)<br>
       <strong>Tax after Deductions:</strong> ${Math.max(0, baseTax - breaks)}<br>
-      ${amtApplied ? `<strong style="color:#dc143c;">AMT Applied:</strong> ${amtValue} (${amtPercentString})<br><span style="font-size:0.99em; color:#dc143c;">${amtExplanation}</span><br>` : ""}
+      ${amtApplied ? `<strong style="color:#dc143c;">AMT Applied:</strong> ${amtValue} (${amtPercentString})<br><span style="font-size:0.87em; color:#dc143c;">${amtExplanation}</span><br>` : ""}
       <strong style="color:#d4af7f;">Tax Owed:</strong> <span style="color:#d4af7f;">${tax}</span><br>
       <strong style="color:#d4af7f;">Net Income:</strong> <span style="color:#d4af7f;">${netIncome}</span><br>
       <strong>Effective Rate Before Deductions:</strong> ${beforeRate}%<br>
@@ -972,6 +974,7 @@ function showTaxBreakdown(playerIndex) {
         closeBtn.onclick = () => {
           document.getElementById("customPopupOverlay").style.display = "none";
           calculateFinalTaxes();
+          playClickFeedback();
         };
       }
     }
@@ -1045,10 +1048,12 @@ function customPopup(message, callback, isHtml = false, yesText = "Yes", noText 
     yesBtn.onclick = () => {
       overlay.style.display = "none";
       callback(true);
+      playClickFeedback();
     };
     noBtn.onclick = () => {
       overlay.style.display = "none";
       callback(false);
+      playClickFeedback();
     };
   }
 }
@@ -1069,3 +1074,96 @@ function customHTMLPopup(message, html, callback) {
 
   if (typeof callback === "function") callback();
 }
+
+/* ================================
+   Interaction Feedback (iPhone-style key click approximation)
+   ================================ */
+let audioCtx = null;
+
+/**
+ * Approximate iPhone keyboard click:
+ * - Short high-frequency blip (triangle)
+ * - Very quick low thump to soften attack
+ * - Optional tiny noise burst for realism
+ */
+function playClickSound() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const now = audioCtx.currentTime;
+
+    // High tone
+    const high = audioCtx.createOscillator();
+    high.type = 'triangle';
+    // Slight randomization
+    high.frequency.setValueAtTime(3000 + Math.random() * 120, now);
+
+    const highGain = audioCtx.createGain();
+    highGain.gain.setValueAtTime(0.16, now);
+    highGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+    // Low thump
+    const low = audioCtx.createOscillator();
+    low.type = 'sine';
+    low.frequency.setValueAtTime(155 + Math.random() * 15, now);
+    const lowGain = audioCtx.createGain();
+    lowGain.gain.setValueAtTime(0.085, now);
+    lowGain.gain.exponentialRampToValueAtTime(0.00001, now + 0.07);
+
+    // Tiny noise
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2) * 0.25;
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.12, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+
+    // Master gain slight compression
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0.9, now);
+
+    high.connect(highGain).connect(master);
+    low.connect(lowGain).connect(master);
+    noise.connect(noiseGain).connect(master);
+    master.connect(audioCtx.destination);
+
+    high.start(now);
+    high.stop(now + 0.11);
+    low.start(now);
+    low.stop(now + 0.08);
+    noise.start(now);
+    noise.stop(now + 0.06);
+  } catch (e) {
+    // ignore playback issues
+  }
+}
+
+function playClickFeedback() {
+  if (navigator.vibrate) {
+    // Pattern for a subtle double-tap feel
+    navigator.vibrate([8, 15, 6]);
+  }
+  playClickSound();
+}
+
+// Attach feedback globally for buttons (pointerdown to feel immediate)
+document.addEventListener('pointerdown', (e) => {
+  const btn = e.target.closest('button');
+  if (btn) {
+    playClickFeedback();
+  }
+});
+
+// Resume AudioContext on first user gesture for iOS
+['touchstart', 'mousedown'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }, { passive: true });
+});
