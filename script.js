@@ -650,10 +650,11 @@ function showEndgame() {
     debtors.forEach((debtor, idx) => {
       let owedList = debtor.owedTo.map(o => `<span style="color:#d4af7f;">${o.name}</span> (${o.amount})`).join(", ");
       checkboxesHtml += `
-        <div style="display:flex; align-items:center; gap:0.7em; margin-bottom:1.2em;">
-          <input type="checkbox" class="endgame-debt-checkbox" data-debtor="${debtor.index}" id="endgameDebtChk${debtor.index}" style="margin-right:0.5em;">
-          <span style="color:#dc143c; font-weight:bold;">${debtor.name}</span> owes: ${owedList}
-        </div>
+        <label style="display:block; margin-bottom:1.2em; cursor:pointer;">
+          <input type="checkbox" class="endgame-debt-checkbox" data-debtor="${debtor.index}" id="endgameDebtChk${debtor.index}" style="margin-right:0.8em; vertical-align:middle;">
+          <span style="color:#dc143c; font-weight:bold; vertical-align:middle;">${debtor.name}</span>
+          <span style="vertical-align:middle;">&nbsp;owes: ${owedList}</span>
+        </label>
       `;
     });
     checkboxesHtml += `</form></div>`;
