@@ -641,7 +641,7 @@ button, .styled-btn, .card-btn, .donate-btn-shape {
 .endgame-cards-container::-webkit-scrollbar {
   display: none;
 }
-/* Debt grouped carousels (updated to match endgame style without smooth scroll to prevent jitter) */
+/* Original debt carousel (kept for reference if needed elsewhere) */
 .debt-group-title {
   font-family: 'Lilita One', cursive;
   color: #d4af7f;
@@ -705,4 +705,127 @@ button, .styled-btn, .card-btn, .donate-btn-shape {
   .debt-group-title {
     font-size: 1.05rem;
   }
+}
+
+/* NEW: Flat grid for debt categories (no subcategory grouping) */
+.debt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 0.4rem 0 1rem 0;
+}
+@media screen and (max-width: 620px) {
+  .debt-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+/* Tutorial Overlay */
+.tutorial-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #000000bb;
+  z-index: 1600;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.tutorial-box {
+  background: #232323;
+  border: 3px solid #d4af7f;
+  border-radius: 16px;
+  max-width: 640px;
+  width: 100%;
+  padding: 1.4rem 1.3rem 1.2rem;
+  box-shadow: 0 6px 28px #0005, 0 0 10px #d4af7f33;
+  font-family: 'Roboto', sans-serif;
+  position: relative;
+}
+.tutorial-box h3 {
+  margin: 0 0 0.6rem;
+  font-family: 'Lilita One', cursive;
+  font-weight: normal;
+  color: #d4af7f;
+  text-align: center;
+  font-size: 1.5rem;
+}
+.tutorial-text {
+  font-size: 1.02rem;
+  line-height: 1.45;
+  text-align: left;
+}
+.tutorial-progress {
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: #bbb;
+  text-align: right;
+  margin-top: 0.6rem;
+}
+.tutorial-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  justify-content: center;
+}
+.tutorial-btn {
+  background: #d4af7f;
+  color: #232323;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 1.1rem;
+  font-family: 'Lilita One', cursive;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background .2s;
+}
+.tutorial-btn:active {
+  background: #a68c5c;
+}
+.tutorial-btn[disabled] {
+  background: #555;
+  color: #999;
+  cursor: not-allowed;
+}
+.tutorial-btn.secondary {
+  background: #444;
+  color: #eee;
+}
+.tutorial-btn.secondary:active {
+  background: #333;
+}
+.tutorial-btn.skip {
+  background: #5a5a5a;
+  color: #eee;
+}
+.tutorial-highlight {
+  position: relative;
+  z-index: 1500 !important;
+  box-shadow: 0 0 0 4px #d4af7f, 0 0 18px 6px #d4af7f66 !important;
+  transition: box-shadow 0.25s;
+  border-radius: 14px !important;
+}
+@media screen and (max-width:600px) {
+  .tutorial-box {
+    max-width: 100%;
+    padding: 1rem 0.9rem 0.9rem;
+  }
+  .tutorial-box h3 {
+    font-size: 1.3rem;
+  }
+  .tutorial-text {
+    font-size: 0.95rem;
+  }
+  .tutorial-btn {
+    flex: 1 1 auto;
+    min-width: 110px;
+  }
+}
+#replayTutorialBtn {
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+  margin-top: 0.6rem;
+  max-width: 160px;
 }

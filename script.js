@@ -36,6 +36,204 @@ document.addEventListener('touchend', function(e) {
   }
 }, { passive: false });
 
+/* ------------------ TUTORIAL SYSTEM ------------------ */
+
+window.__tutorialCompleted = false;
+let tutorialPhase = 0; // 0 none, 1 pre-game, 2 in-game
+let tutorialStepIndex = 0;
+
+const preGameTutorialSteps = [
+  {
+    title: "Welcome to TAX404",
+    text: "This handy helper tracks donations, tax breaks, and debts for a game of Haggleoff. We'll walk you through how to use it. You can skip any time."
+  },
+  {
+    title: "Players",
+    text: "You need at least 2 players to play Haggleoff. You can track up to 7 here."
+  },
+  {
+    title: "Elect a Tracker",
+    text: "Pick one player to run this app. They’ll enter donations and debts honestly."
+  },
+  {
+    title: "Entering Names",
+    text: "Type each player’s name. Use “+ Add Player” for more. At least 2 names must be required. Then press “Start Game.”"
+  },
+  {
+    title: "Ready?",
+    text: "When you click Start Game you’ll see player cards and we’ll show you a quick tour. Let’s go!"
+  }
+];
+
+const inGameTutorialSteps = [
+  {
+    title: "Player Cards",
+    target: () => document.querySelector(".player-card.active"),
+    text: "Each player has a card. The current player’s card glows. They get 60 seconds each turn."
+  },
+  {
+    title: "Timer Control",
+    target: () => document.querySelector(".player-card.active .player-card-timer"),
+    text: "You can tap the big number (the timer) to pause or resume it. If it hits zero, the turn is frozen until restarted."
+  },
+  {
+    title: "Tax Break Progress",
+    target: () => document.querySelector(".player-card.active .player-card-progress"),
+    text: "These little gold bars show donation progress toward the next streak (5 normal cards = 1 tax break)."
+  },
+  {
+    title: "Debt Overview",
+    target: () => {
+      const active = document.querySelector(".player-card.active");
+      if (!active) return null;
+      return active.querySelector("div[style*='Debt Owed']");
+    },
+    text: "Red number = how much this player owes others. Green = how much they can collect from others."
+  },
+  {
+    title: "Log Button",
+    target: () => document.querySelector(".player-card.active .donate-btn"),
+    text: "Click “Log” to record donations or adjust any outstanding debts with other players."
+  },
+  {
+    title: "Endgame Button",
+    target: () => document.getElementById("endgameTaxesBtn"),
+    text: "When the money or patience runs out, tap “Endgame Taxes.” Settle debts first — you’ll be reminded."
+  },
+  {
+    title: "Endgame Screen",
+    text: "After debts are settled, enter each player’s Haggleoffs (coins) and properties. Taxes are calculated automatically."
+  },
+  {
+    title: "Winner!",
+    text: "Final results show taxes, net income, and the winner. That’s the tour—have fun Haggleoffing!"
+  }
+];
+
+function startPreGameTutorial() {
+  tutorialPhase = 1;
+  tutorialStepIndex = 0;
+  showTutorialStep();
+}
+
+function startInGameTutorial() {
+  tutorialPhase = 2;
+  tutorialStepIndex = 0;
+  showTutorialStep();
+}
+
+function replayTutorial() {
+  if (document.getElementById("disclaimerOverlay").style.display !== "none") {
+    dismissDisclaimer();
+    return;
+  }
+  if (players.length === 0) {
+    startPreGameTutorial();
+  } else {
+    startInGameTutorial();
+  }
+}
+
+function skipTutorial() {
+  clearTutorialHighlight();
+  hideTutorialOverlay();
+  if (tutorialPhase === 1) {
+    document.getElementById("playerSetupBox").style.display = "block";
+  }
+  tutorialPhase = 0;
+  window.__tutorialCompleted = true;
+}
+
+function hideTutorialOverlay() {
+  const ov = document.getElementById("tutorialOverlay");
+  if (ov) ov.style.display = "none";
+}
+
+function showTutorialOverlay() {
+  const ov = document.getElementById("tutorialOverlay");
+  if (ov) ov.style.display = "flex";
+}
+
+function showTutorialStep() {
+  const contentEl = document.getElementById("tutorialContent");
+  const progressEl = document.getElementById("tutorialProgress");
+  const backBtn = document.getElementById("tutorialBackBtn");
+  const nextBtn = document.getElementById("tutorialNextBtn");
+  const skipBtn = document.getElementById("tutorialSkipBtn");
+  if (!contentEl) return;
+
+  let steps = tutorialPhase === 1 ? preGameTutorialSteps : inGameTutorialSteps;
+  if (!steps || steps.length === 0) return;
+
+  let step = steps[tutorialStepIndex];
+  contentEl.innerHTML = `<strong>${step.title}</strong><br>${step.text}`;
+  progressEl.textContent = `Step ${tutorialStepIndex + 1} of ${steps.length}`;
+
+  // Back button visibility rule (hide entirely on first step)
+  if (tutorialStepIndex === 0) {
+    backBtn.style.display = 'none';
+  } else {
+    backBtn.style.display = '';
+  }
+
+  // Skip button visibility rule (hide on last step)
+  if (tutorialStepIndex === steps.length - 1) {
+    skipBtn.style.display = 'none';
+  } else {
+    skipBtn.style.display = '';
+  }
+
+  nextBtn.innerText = (tutorialStepIndex === steps.length - 1)
+    ? (tutorialPhase === 1 ? "Start Game" : "Finish")
+    : "Next";
+
+  showTutorialOverlay();
+
+  clearTutorialHighlight();
+  if (step.target) {
+    setTimeout(() => {
+      const target = step.target();
+      if (target) {
+        target.classList.add("tutorial-highlight");
+        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      }
+    }, 50);
+  }
+
+  backBtn.onclick = () => {
+    if (tutorialStepIndex > 0) {
+      tutorialStepIndex--;
+      showTutorialStep();
+    }
+  };
+  nextBtn.onclick = () => {
+    if (tutorialStepIndex === steps.length - 1) {
+      clearTutorialHighlight();
+      hideTutorialOverlay();
+      if (tutorialPhase === 1) {
+        document.getElementById("playerSetupBox").style.display = "block";
+      } else {
+        window.__tutorialCompleted = true;
+        tutorialPhase = 0;
+      }
+      return;
+    }
+    tutorialStepIndex++;
+    showTutorialStep();
+  };
+  skipBtn.onclick = () => {
+    skipTutorial();
+  };
+}
+
+function clearTutorialHighlight() {
+  document.querySelectorAll(".tutorial-highlight").forEach(el => {
+    el.classList.remove("tutorial-highlight");
+  });
+}
+
+/* ------------------------------------------------------ */
+
 document.getElementById("playerForm").addEventListener("submit", function(e) {
   e.preventDefault();
   const entered = [...this.querySelectorAll("input[name='playerName']")].filter(input => input.value.trim());
@@ -69,6 +267,9 @@ document.getElementById("playerForm").addEventListener("submit", function(e) {
     <span class="player-name" style="color: #d4af7f;">Property Stack size: ${n + 1}</span>`;
   customPopup(setupMsg, function() {
     showPlayerCards();
+    if (!window.__tutorialCompleted && tutorialPhase === 1) {
+      startInGameTutorial();
+    }
   }, true, "Yes", "No", true);
 });
 
@@ -142,6 +343,10 @@ function showPlayerCards() {
   timerRunningState = true;
   startTimer();
   updatePopupTimerDisplay();
+
+  if (tutorialPhase === 2 && document.getElementById("tutorialOverlay").style.display === "flex") {
+    setTimeout(() => showTutorialStep(), 120);
+  }
 }
 
 function renderCardProgress(progress) {
@@ -197,6 +402,9 @@ function setupPlayerCardClickHandler() {
         startTimer();
         updatePopupTimerDisplay();
         setupTimerClickHandler();
+        if (tutorialPhase === 2 && document.getElementById("tutorialOverlay").style.display === "flex") {
+          setTimeout(() => showTutorialStep(), 80);
+        }
       };
     });
   }, 0);
@@ -231,6 +439,9 @@ function setupScrollToSetActivePlayer() {
         cards.forEach((c, idx) => c.classList.toggle('active', idx === minIndex));
         updatePopupTimerDisplay();
         setupTimerClickHandler();
+        if (tutorialPhase === 2 && document.getElementById("tutorialOverlay").style.display === "flex") {
+          setTimeout(() => showTutorialStep(), 80);
+        }
       }
       if (scrollTimeout) clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
@@ -410,7 +621,7 @@ function loadCalculator() {
         <label>Normal Cards Donated</label>
         <div class="donate-row">
           <button class="donate-btn-shape" id="minusNormal" style="${minusBtnStyle}" ${normalDonated === 0 ? 'disabled' : ''}>-</button>
-          <div class="donate-blocks-container">${blocks}</div>
+            <div class="donate-blocks-container">${blocks}</div>
           <button class="donate-btn-shape" id="plusNormal" style="${plusBtnStyle}" ${(normalDonated + tempProgress >= 20) ? 'disabled' : ''}>+</button>
         </div>
         <span class="streak-helper">Each streak (5 cards) is a Tax Break Earned</span>
@@ -489,6 +700,7 @@ function loadCalculator() {
 let selectedCategory = null;
 let selectedType = "pay"; // pay => Debt Owed, collect => Collect Debt
 
+/* UPDATED: Flat grid popup (removed subcategory grouping) */
 function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
   const activeIdx = currentPlayerIndex;
   const otherIdx = creditorIdx;
@@ -502,55 +714,45 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       Tap a card to select it. Tap again to toggle between <span style="color:#dc143c;">Debt Owed (Red)</span> and <span style="color:#19a43c;">Collect Debt (Green)</span>.
       Use + / - to adjust ONLY when highlighted.
     </div>
+    <div class="debt-grid">
   `;
 
-  Object.keys(debtCategoryGroups).forEach(groupName => {
-    popupHtml += `<div class="debt-group-block">
-      <h3 class="debt-group-title">${groupName}</h3>
-      <div class="debt-subcarousel">
-        <div class="debt-subcarousel-row" data-group="${groupName}">
-    `;
-    debtCategoryGroups[groupName].forEach(cat => {
-      const payAmt = debts[activeIdx][otherIdx][cat] || 0;
-      const collectAmt = debts[otherIdx][activeIdx][cat] || 0;
-      let isSelected = selectedCategory === cat;
-      let borderColor = isSelected
-        ? (selectedType === "pay" ? "#dc143c" : "#19a43c")
-        : "#d4af7f60";
-      let shadowColor = isSelected
-        ? (selectedType === "pay" ? "#dc143c55" : "#19a43c55")
-        : "#0002";
-
-      popupHtml += `
-        <div class="debtCatFrame" data-cat="${cat}" data-selected="${isSelected}" data-mode="${isSelected ? selectedType : ''}"
-             style="background:#232323; border-radius:12px; padding:0.55rem 0.55rem 0.6rem; border:3px solid ${borderColor}; box-shadow:0 2px 8px ${shadowColor}; cursor:pointer; position:relative;">
-          <span class="debtPayVal" style="position:absolute; top:0.5em; left:0.6em; font-weight:bold; color:#dc143c; font-size:0.95em; z-index:1;">${payAmt}</span>
-          <span class="debtCollectVal" style="position:absolute; top:0.5em; right:0.6em; font-weight:bold; color:#19a43c; font-size:0.95em; z-index:1;">${collectAmt}</span>
-          <div style="position:relative; display:flex; align-items:center; justify-content:center;">
-            <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
-          </div>
-          <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.25rem; font-size:0.95rem; gap:0.5em; text-align:center;">
-            <span style="flex:1; text-align:center; width:100%;">${cat}</span>
-          </div>
-          <div class="debtCatControls">
-            ${
-              isSelected
-                ? `<button class="changeDebtBtn" data-cat="${cat}" data-type="minus" style="${minusBtnStyle}">-</button>
-                   <button class="changeDebtBtn" data-cat="${cat}" data-type="plus" style="${plusBtnStyle}">+</button>`
-                : ``
-            }
-          </div>
-        </div>
-      `;
-    });
+  debtCategories.forEach(cat => {
+    const payAmt = debts[activeIdx][otherIdx][cat] || 0;
+    const collectAmt = debts[otherIdx][activeIdx][cat] || 0;
+    let isSelected = selectedCategory === cat;
+    let borderColor = isSelected
+      ? (selectedType === "pay" ? "#dc143c" : "#19a43c")
+      : "#d4af7f60";
+    let shadowColor = isSelected
+      ? (selectedType === "pay" ? "#dc143c55" : "#19a43c55")
+      : "#0002";
 
     popupHtml += `
+      <div class="debtCatFrame" data-cat="${cat}" data-selected="${isSelected}" data-mode="${isSelected ? selectedType : ''}"
+           style="background:#232323; border-radius:12px; padding:0.55rem 0.55rem 0.6rem; border:3px solid ${borderColor}; box-shadow:0 2px 8px ${shadowColor}; cursor:pointer; position:relative;">
+        <span class="debtPayVal" style="position:absolute; top:0.5em; left:0.6em; font-weight:bold; color:#dc143c; font-size:0.95em; z-index:1;">${payAmt}</span>
+        <span class="debtCollectVal" style="position:absolute; top:0.5em; right:0.6em; font-weight:bold; color:#19a43c; font-size:0.95em; z-index:1;">${collectAmt}</span>
+        <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+          <img src="${getImageName(cat)}" alt="${cat}" style="width:84px; height:84px; object-fit:contain; border-radius:10px; background:#191919; box-shadow:0 1px 3px #0002;">
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; font-family:'Lilita One',cursive; margin-top:0.25rem; font-size:0.95rem; gap:0.5em; text-align:center;">
+          <span style="flex:1; text-align:center; width:100%;">${cat}</span>
+        </div>
+        <div class="debtCatControls">
+          ${
+            isSelected
+              ? `<button class="changeDebtBtn" data-cat="${cat}" data-type="minus" style="${minusBtnStyle}">-</button>
+                 <button class="changeDebtBtn" data-cat="${cat}" data-type="plus" style="${plusBtnStyle}">+</button>`
+              : ``
+          }
         </div>
       </div>
-    </div>`;
+    `;
   });
 
   popupHtml += `
+    </div>
     <button id="closeDebtsPopupBtn" style="margin-top:0.2rem; background:#d4af7f; color:#232323; border-radius:8px; border:none; padding:0.65rem 1.2rem; font-family:'Lilita One',cursive; font-size:1.05rem; cursor:pointer;">Close</button>
   `;
 
@@ -562,7 +764,7 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       loadCalculator();
     };
 
-    // Frame selection without re-render (avoid jitter)
+    // Selection handling
     document.querySelectorAll('.debtCatFrame').forEach(frame => {
       frame.addEventListener('click', e => {
         if (e.target.classList.contains('changeDebtBtn')) return;
@@ -577,7 +779,7 @@ function showOutstandingDebtsPopup(debtorIdx, creditorIdx) {
       });
     });
 
-    // Change buttons (event delegation)
+    // Change buttons
     document.querySelectorAll('.changeDebtBtn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -601,7 +803,6 @@ function applyDebtSelectionStyles(activeIdx, otherIdx) {
     const isSel = (cat === selectedCategory);
     frame.setAttribute('data-selected', isSel ? 'true' : 'false');
     frame.setAttribute('data-mode', isSel ? selectedType : '');
-    // Update controls
     const controls = frame.querySelector('.debtCatControls');
     if (!controls) return;
     if (isSel) {
@@ -615,7 +816,7 @@ function applyDebtSelectionStyles(activeIdx, otherIdx) {
         btn.addEventListener('click', e => {
           e.stopPropagation();
           const delta = btn.getAttribute('data-type') === "plus" ? 1 : -1;
-            if (selectedType === "pay") {
+          if (selectedType === "pay") {
             debts[activeIdx][otherIdx][cat] = Math.max(0, (debts[activeIdx][otherIdx][cat] || 0) + delta);
           } else {
             debts[otherIdx][activeIdx][cat] = Math.max(0, (debts[otherIdx][activeIdx][cat] || 0) + delta);
@@ -626,18 +827,14 @@ function applyDebtSelectionStyles(activeIdx, otherIdx) {
     } else {
       controls.innerHTML = '';
     }
-    // Border / shadow (CSS attribute selectors handle main styling)
   });
 }
 
 function updateDebtAmounts(activeIdx, otherIdx, cat) {
-  // Update specified frame numbers
   document.querySelectorAll(`.debtCatFrame[data-cat="${cat}"]`).forEach(frame => {
     frame.querySelector('.debtPayVal').textContent = debts[activeIdx][otherIdx][cat] || 0;
     frame.querySelector('.debtCollectVal').textContent = debts[otherIdx][activeIdx][cat] || 0;
   });
-  // Also update the player cards / calculator outstanding display if open
-  // (We do not rebuild popup, so no jitter)
 }
 
 function customHTMLPopupNoExtraCloseBtn(message, html, callback) {

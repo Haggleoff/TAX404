@@ -13,9 +13,25 @@
   <meta charset="UTF-8">
   <title>Haggleoff TAX404</title>
   <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <!-- (Some duplicated partial HTML tags existed originally; keeping structure consistent) -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
 <html lang="en" >
 <head>
   <meta charset="UTF-8">
@@ -68,6 +84,20 @@
     </div>
   </div>
 
+  <!-- Tutorial overlay -->
+  <div id="tutorialOverlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorialHeading">
+    <div class="tutorial-box">
+      <h3 id="tutorialHeading">Tutorial</h3>
+      <div id="tutorialContent" class="tutorial-text"></div>
+      <div class="tutorial-progress" id="tutorialProgress"></div>
+      <div class="tutorial-controls">
+        <button id="tutorialBackBtn" class="tutorial-btn secondary">Back</button>
+        <button id="tutorialNextBtn" class="tutorial-btn">Next</button>
+        <button id="tutorialSkipBtn" class="tutorial-btn skip">Skip</button>
+      </div>
+    </div>
+  </div>
+
   <div id="siteHeader">
     <a href="https://haggleoff.com" target="_blank">
       <img id="siteLogo" src="logo.png" alt="Haggleoff Logo" />
@@ -76,6 +106,7 @@
     <p id="headerTagline" style="font-style: italic; font-family: 'Roboto'; color: #d9d9d9; margin-top: -0.5rem; margin-bottom: 0.5rem;">
       Mediocre tax software courtesy of Haggleoff
     </p>
+    <button id="replayTutorialBtn" class="styled-btn" onclick="replayTutorial()">Tutorial</button>
   </div>
 
   <div id="playerSetupBox" style="display: none;">
@@ -127,7 +158,12 @@
 
     function dismissDisclaimer() {
       document.getElementById("disclaimerOverlay").style.display = "none";
-      document.getElementById("playerSetupBox").style.display = "block";
+      // Start tutorial if not completed
+      if (!window.__tutorialCompleted) {
+        startPreGameTutorial();
+      } else {
+        document.getElementById("playerSetupBox").style.display = "block";
+      }
     }
 
     function addPlayerField() {
@@ -151,6 +187,11 @@
 </body>
 </html>
 <!-- Retaining repeated closing segments from original file -->
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
 <!-- partial -->
   <script  src="./script.js"></script>
 
