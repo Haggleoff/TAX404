@@ -6,6 +6,7 @@
  * - Hardened popup system (prevents null errors)
  * - Enhanced Final Results (winner ribbons, rank bars)
  * - AMT only shown if applied
+ * - Exit sequence with animated logo fly-out + thanks screen
  ************************************************************/
 
 let players = [];
@@ -93,6 +94,11 @@ function clearAllDebtsBetween(a,b){
     debts[b][a][cat]=0;
   });
 }
+function clearSideDebts(from,to){
+  debtCategories.forEach(cat=>{
+    debts[from][to][cat]=0;
+  });
+}
 
 /* Player Cards */
 function resetDonationState(){
@@ -122,7 +128,7 @@ function showPlayerCards(){
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
-            <div class="player-card-debts">
+          <div class="player-card-debts">
             <span>Debt Owed: <span style="color:#dc143c;font-weight:bold;">${owe}</span></span>
             <span>Collect Debt: <span style="color:#19a43c;font-weight:bold;">${collect}</span></span>
           </div>
@@ -281,18 +287,7 @@ function attachDebtSheetEvents(otherIdx){
   const sheet=document.getElementById('debtSheet');
   sheet.querySelector('#closeSheetBtn').onclick=closeDebtSheet;
   sheet.querySelector('#clearAllPairBtn').onclick=()=>{
-    customPopup(
-      `Clear all debts between <span class="player-name">${players[a].name}</span> and <span class="player-name">${players[otherIdx].name}</span>?`,
-      yes=>{
-        if(yes){
-          clearAllDebtsBetween(a,otherIdx);
-            refreshAllCategoryRows();
-            updatePairHeader(a,otherIdx);
-            refreshOverviewOnly();
-        }
-      },
-      true,"Yes","No",false
-    );
+    openClearDebtsOptions(a,otherIdx);
   };
   sheet.querySelectorAll('.debt-group-toggle').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -324,6 +319,60 @@ function attachDebtSheetEvents(otherIdx){
     if(e.target.id==='debtSheetOverlay') closeDebtSheet();
   }, { once:true });
 }
+
+/* New: Multi-option Clear Debts popup while sheet stays open */
+function openClearDebtsOptions(a,b){
+  ensurePopupElements();
+  const overlay=document.getElementById('customPopupOverlay');
+  const msg=document.getElementById('customPopupMessage');
+  const btnBox=document.getElementById('customPopupButtons');
+  if(!overlay||!msg||!btnBox) return;
+  overlay.style.zIndex='2100'; // above bottom sheet
+  msg.innerHTML=`
+    <h2 class="lilita" style="color:var(--color-accent); margin:0 0 .55rem;">Clear Debts</h2>
+    <p style="font-size:1rem;line-height:1.35;margin:0 0 .8rem;">
+      Choose what to clear between <span class="player-name" style="color:var(--color-accent);">${players[a].name}</span> and
+      <span class="player-name" style="color:var(--color-accent);">${players[b].name}</span>.
+    </p>
+  `;
+  btnBox.innerHTML=`
+    <button class="styled-btn" id="clearYouOweBtn" style="flex:1 1 220px;min-width:180px;">Clear What You Owe</button>
+    <button class="styled-btn" id="clearTheyOweBtn" style="flex:1 1 220px;min-width:180px;">Clear What They Owe You</button>
+    <button class="btn-danger styled-btn" id="clearBothSidesBtn" style="flex:1 1 220px;min-width:180px;">Clear Both Sides</button>
+    <button class="btn-neutral styled-btn" id="cancelClearBtn" style="flex:1 1 220px;min-width:180px;">Cancel</button>
+  `;
+  overlay.style.display='flex';
+
+  function close(){
+    overlay.style.display='none';
+    overlay.style.zIndex='1200';
+  }
+  document.getElementById('clearYouOweBtn').onclick=()=>{
+    debtCategories.forEach(cat=>debts[a][b][cat]=0);
+    normalizePair(a,b);
+    refreshAllCategoryRows();
+    updatePairHeader(a,b);
+    refreshOverviewOnly();
+    close();
+  };
+  document.getElementById('clearTheyOweBtn').onclick=()=>{
+    debtCategories.forEach(cat=>debts[b][a][cat]=0);
+    normalizePair(a,b);
+    refreshAllCategoryRows();
+    updatePairHeader(a,b);
+    refreshOverviewOnly();
+    close();
+  };
+  document.getElementById('clearBothSidesBtn').onclick=()=>{
+    clearAllDebtsBetween(a,b);
+    refreshAllCategoryRows();
+    updatePairHeader(a,b);
+    refreshOverviewOnly();
+    close();
+  };
+  document.getElementById('cancelClearBtn').onclick=close;
+}
+
 function refreshCategoryRow(cat){
   if(openDebtPlayerIndex==null) return;
   const a=currentPlayerIndex, b=openDebtPlayerIndex;
@@ -470,7 +519,7 @@ function loadCalculator(){
           <div class="power-circle-container">
             <div class="power-circle${powerDonated===0?' zero':''}">${powerDonated}</div>
           </div>
-            <button id="plusPower" class="btn-round">+</button>
+          <button id="plusPower" class="btn-round">+</button>
         </div>
 
         <div class="player-card-breaks" style="margin:0.55rem 0 0.6rem;">
@@ -959,7 +1008,9 @@ function getAuditRiskLevel(p){
 }
 
 /* Exit & Reset */
-function exitToSetup(){ backToNameInput(); }
+function exitToSetup(){
+  startExitSequence();
+}
 function backToNameInput(){
   players=[]; debts=[]; disallowedNormalCards=[];
   currentPlayerIndex=0;
@@ -967,6 +1018,73 @@ function backToNameInput(){
   timerRunningState=true; timeLeft=60;
   document.getElementById('playerSetupBox').style.display='block';
   document.getElementById('mainGameContainer').innerHTML='';
+}
+
+/* Animated Exit Sequence */
+function startExitSequence(){
+  // Reset game state but do NOT immediately show setup
+  players=[]; debts=[]; disallowedNormalCards=[];
+  currentPlayerIndex=0;
+  if(timerInterval) clearInterval(timerInterval);
+  timerRunningState=true; timeLeft=60;
+  const setup=document.getElementById('playerSetupBox');
+  if(setup) setup.style.display='none';
+  const main=document.getElementById('mainGameContainer');
+  if(main) main.innerHTML='';
+
+  const existing=document.getElementById('exitSequenceContainer');
+  if(existing) existing.remove();
+
+  const siteHeader=document.getElementById('siteHeader');
+  if(siteHeader) siteHeader.style.visibility='hidden';
+
+  const container=document.createElement('div');
+  container.id='exitSequenceContainer';
+  container.innerHTML=`
+    <div id="flyHeaderContainer">
+      <img id="flyLogo" src="logo.png" alt="Haggleoff Logo">
+      <h1 id="flyTaxText" class="lilita">TAX404</h1>
+    </div>
+    <div id="exitMessageArea" style="width:100%;max-width:780px;display:none;">
+      <h2 class="exit-thanks">Thank you for Haggleoffing...</h2>
+      <p class="exit-subline">Your mediocre filings slipped into the shredder before Haggie Revenue Service could audit a single page. Haggleoff again?</p>
+      <div style="display:flex;justify-content:center;">
+        <button id="playAgainBtn" class="styled-btn play-again-btn" style="max-width:240px;">Play Again</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(container);
+
+  requestAnimationFrame(()=>{
+    const fly=document.getElementById('flyHeaderContainer');
+    const headerRect=siteHeader.getBoundingClientRect();
+    const flyRect=fly.getBoundingClientRect();
+
+    const targetX = (headerRect.left + headerRect.width/2) - (flyRect.left + flyRect.width/2);
+    const targetY = (headerRect.top + headerRect.height/2) - (flyRect.top + flyRect.height/2);
+
+    fly.style.transform = `translate(-50%,-50%) scale(1.15)`;
+    void fly.offsetWidth;
+    fly.style.transform = `translate(calc(-50% + ${targetX}px), calc(-50% + ${targetY}px)) scale(1)`;
+
+    fly.addEventListener('transitionend', ()=>{
+      fly.classList.add('fly-arrived');
+      setTimeout(()=>{
+        if(siteHeader) siteHeader.style.visibility='visible';
+        const msg=document.getElementById('exitMessageArea');
+        if(msg) msg.style.display='block';
+        const playAgain=document.getElementById('playAgainBtn');
+        if(playAgain){
+          playAgain.onclick=()=>{
+            container.remove();
+            document.getElementById('playerSetupBox').style.display='block';
+            window.scrollTo({top:0,behavior:'smooth'});
+          };
+        }
+        setTimeout(()=>{ fly.remove(); },450);
+      },120);
+    }, { once:true });
+  });
 }
 
 /* ------------ Robust Popup System ------------ */
