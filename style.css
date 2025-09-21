@@ -588,6 +588,39 @@ input:focus, select:focus {
 .debt-cat-name { font-size:1rem; letter-spacing:0.45px; color:var(--color-accent); margin:0; }
 .debt-cat-stats { font-size:1rem; display:flex; gap:0.6rem; flex-wrap:nowrap; align-items:center; }
 
+/* NEW: Adjust buttons themed */
+/* CHANGED: Make + and - buttons horizontal instead of vertical */
+.debt-cat-adjust {
+  display:flex;
+  flex-direction:row;
+  gap:6px;
+  align-items:center;
+  justify-content:center;
+}
+.debt-adjust-small-btn {
+  width:48px;
+  height:48px;
+  font-family:var(--font-display);
+  font-size:1.25rem;
+  border-radius:var(--radius-lg);
+  border:2px solid var(--color-accent);
+  background:var(--color-accent);
+  color:#232323;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:var(--shadow-sm);
+  transition:background var(--transition-fast), transform var(--transition-fast);
+}
+.debt-adjust-small-btn:active { background:#b8925f; transform:translateY(1px); }
+.debt-adjust-small-btn.minus {
+  background:var(--color-accent-alt);
+  border-color:var(--color-accent-alt);
+  color:#fff;
+}
+.debt-adjust-small-btn.minus:active { background:var(--color-accent-alt-dark); }
+
 /* Pulses */
 @keyframes valuePulseGreen { 0% { box-shadow:0 0 0 0 #19a43c55; } 100% { box-shadow:0 0 0 18px transparent; } }
 @keyframes valuePulseRed { 0% { box-shadow:0 0 0 0 #dc143c55; } 100% { box-shadow:0 0 0 18px transparent; } }
@@ -612,7 +645,6 @@ input:focus, select:focus {
   text-align:center;
   border:2px solid var(--color-border);
   background:#313131;
-  color:#232323;
   color:var(--color-fg);
   transition:background var(--transition-fast), border-color var(--transition-fast);
 }

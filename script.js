@@ -122,7 +122,7 @@ function showPlayerCards(){
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
-          <div class="player-card-debts">
+            <div class="player-card-debts">
             <span>Debt Owed: <span style="color:#dc143c;font-weight:bold;">${owe}</span></span>
             <span>Collect Debt: <span style="color:#19a43c;font-weight:bold;">${collect}</span></span>
           </div>
@@ -240,7 +240,7 @@ function renderDebtSheet(otherIdx){
             <div class="debt-cat-name">${cat}</div>
             <div class="debt-cat-stats">
               <span data-dir="${cat}" class="pill pill-status">${dirLabel}</span>
-              <span data-amt="${cat}" class="pill pill-amt">Amt: ${you>0? you : they>0? they : 0}</span>
+              <span data-amt="${cat}" class="pill pill-amt">${you>0? you : they>0? they : 0}</span>
             </div>
           </div>
           <div class="debt-cat-adjust">
@@ -286,9 +286,9 @@ function attachDebtSheetEvents(otherIdx){
       yes=>{
         if(yes){
           clearAllDebtsBetween(a,otherIdx);
-          refreshAllCategoryRows();
-          updatePairHeader(a,otherIdx);
-          refreshOverviewOnly();
+            refreshAllCategoryRows();
+            updatePairHeader(a,otherIdx);
+            refreshOverviewOnly();
         }
       },
       true,"Yes","No",false
@@ -344,7 +344,7 @@ function refreshCategoryRow(cat){
     else if(they>0) dirSpan.classList.add('value-pulse-green');
   }
   if(amtSpan){
-    amtSpan.textContent=`Amt: ${you>0? you : they>0? they : 0}`;
+    amtSpan.textContent=`${you>0? you : they>0? they : 0}`;
     amtSpan.classList.remove('value-pulse-red','value-pulse-green');
     void amtSpan.offsetWidth;
     if(you>0) amtSpan.classList.add('value-pulse-red');
@@ -470,7 +470,7 @@ function loadCalculator(){
           <div class="power-circle-container">
             <div class="power-circle${powerDonated===0?' zero':''}">${powerDonated}</div>
           </div>
-          <button id="plusPower" class="btn-round">+</button>
+            <button id="plusPower" class="btn-round">+</button>
         </div>
 
         <div class="player-card-breaks" style="margin:0.55rem 0 0.6rem;">
