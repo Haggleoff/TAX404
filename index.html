@@ -8,108 +8,208 @@
 </head>
 <body>
 <!-- partial:index.partial.html -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<!-- (Some duplicated partial HTML tags existed originally; keeping structure consistent) -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>TAX404 - Haggleoff</title>
-  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32">
+  <link rel="stylesheet" href="./style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Roboto&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css" />
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
-  <div id="disclaimerOverlay" class="dimOverlay" style="display:flex;">
+
+  <div id="disclaimerOverlay" class="dimOverlay" style="display: flex;">
     <div class="popupBox">
-      <h2 class="lilita" style="color:var(--color-accent); margin:0 0 0.6rem;">Legal Disclaimer</h2>
-      <p style="text-align:left; line-height:1.45; font-size:0.9rem; margin:0;">
-        TAX404 is not real tax software. It is a fictional component of Haggleoff’s card game experience.<br><br>
-        Haggleoff LLC and TAX404 do not provide financial, accounting, legal, or tax advice. Use is satirical and recreational.<br><br>
-        By continuing, you acknowledge this experience is for gameplay only and not financial guidance.
+      <h2 class="lilita" style="color: #d4af7f;">Legal Disclaimer</h2>
+      <p style="text-align: left;">
+        TAX404 is not a real tax software. It is a fictional component of Haggleoff’s card game experience.<br><br>
+        Haggleoff LLC and TAX404 do not offer financial, accounting, legal, or tax advice through this platform. Use of this software should be considered purely satirical and recreational.<br><br>
+        By continuing, you acknowledge that this experience is for gameplay purposes only and does not constitute financial guidance.
       </p>
-      <button class="styled-btn" style="margin-top:0.9rem;" onclick="dismissDisclaimer()">I Understand</button>
+      <button onclick="dismissDisclaimer()">I Understand</button>
+    </div>
+  </div>
+
+  <!-- Tutorial overlay -->
+  <div id="tutorialOverlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorialHeading">
+    <div class="tutorial-box">
+      <h3 id="tutorialHeading">Tutorial</h3>
+      <div id="tutorialContent" class="tutorial-text"></div>
+      <div class="tutorial-progress" id="tutorialProgress"></div>
+      <div class="tutorial-controls">
+        <button id="tutorialBackBtn" class="tutorial-btn secondary">Back</button>
+        <button id="tutorialNextBtn" class="tutorial-btn">Next</button>
+        <button id="tutorialSkipBtn" class="tutorial-btn skip">Skip</button>
+      </div>
     </div>
   </div>
 
   <div id="siteHeader">
-    <a href="https://haggleoff.com" target="_blank" aria-label="Haggleoff Website">
-      <img id="siteLogo" src="logo.png" alt="Haggleoff Logo">
+    <a href="https://haggleoff.com" target="_blank">
+      <img id="siteLogo" src="logo.png" alt="Haggleoff Logo" />
     </a>
-    <h1 id="taxLogoText" class="lilita flicker-start">TAX404</h1>
-    <p id="headerTagline">Mediocre tax software courtesy of Haggleoff</p>
+    <h1 id="taxLogoText" class="lilita flicker-start" style="color: #d4af7f;">TAX404</h1>
+    <p id="headerTagline" style="font-style: italic; font-family: 'Roboto'; color: #d9d9d9; margin-top: -0.5rem; margin-bottom: 0.5rem;">
+      Mediocre tax software courtesy of Haggleoff
+    </p>
+    <button id="replayTutorialBtn" class="styled-btn" onclick="replayTutorial()">Tutorial</button>
   </div>
 
-  <div id="playerSetupBox" style="display:none;">
-    <form id="playerForm" class="calculatorBox" autocomplete="off">
-      <h2 class="lilita" style="color:var(--color-accent); margin-top:0;">Enter Player Names</h2>
+  <div id="playerSetupBox" style="display: none;">
+    <form id="playerForm" class="calculatorBox">
+      <h2 class="lilita" style="color: #d4af7f;">Enter Player Names</h2>
       <div id="playerInputFields">
         <input type="text" name="playerName" placeholder="Player 1 (required)" required />
       </div>
-      <div style="display:flex; gap:0.7rem; flex-wrap:wrap; justify-content:center; margin-top:0.9rem;">
-        <button type="button" class="btn-neutral styled-btn" onclick="addPlayerField()">+ Add Player</button>
-        <button type="submit" class="styled-btn">Start Game</button>
-      </div>
+      <button type="button" onclick="addPlayerField()">+ Add Player</button>
+      <br><br>
+      <button type="submit">Start Game</button>
     </form>
   </div>
 
   <div id="mainGameContainer"></div>
 
-  <!-- Generic Popup -->
   <div id="customPopupOverlay" class="dimOverlay">
-    <div class="popupBox" id="customPopupBox">
+    <div class="popupBox">
       <div id="customPopupMessage"></div>
-      <div id="customPopupButtons" style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center; margin-top:0.9rem;">
-        <button id="customPopupYes" class="styled-btn">OK</button>
-        <button id="customPopupNo" class="btn-neutral styled-btn">No</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Debt Bottom Sheet -->
-  <div id="debtSheetOverlay" aria-hidden="true">
-    <div id="debtSheet" class="debt-sheet" role="dialog" aria-modal="true" aria-labelledby="debtSheetTitle">
-      <!-- Dynamic content -->
+      <button id="customPopupYes">OK</button>
+      <button id="customPopupNo">No</button>
     </div>
   </div>
 
   <div id="siteFooter">
     <p>
-      &copy; 2025 Haggleoff LLC. All rights reserved.<br>
-      Haggleoff, Haggie, Haggieland, the V emblem, the Haggleoff logo, and TAX404 are trademarks of Haggleoff LLC.
+      Copyright © 2025 Haggleoff LLC.<br />All rights reserved.<br />
+      Haggleoff, Haggie, Haggieland, the V emblem, the Haggleoff logo, and TAX404 are all trademarks of Haggleoff LLC.
     </p>
   </div>
 
   <script src="script.js"></script>
   <script>
-    window.addEventListener('load', () => {
-      const logo = document.getElementById('taxLogoText');
-      logo.classList.remove('flicker-start');
-      setTimeout(()=>logo.classList.add('flicker-start'), 500);
+    window.addEventListener("load", function () {
+      const logo = document.getElementById("taxLogoText");
+      logo.classList.remove("flicker-start");
+      setTimeout(() => logo.classList.add("flicker-start"), 500);
 
-      // Ensure Player 2 field exists
-      const container = document.getElementById('playerInputFields');
-      if(container.querySelectorAll('input').length === 1){
-        const input=document.createElement('input');
-        input.type='text';
-        input.name='playerName';
-        input.placeholder='Player 2 (required)';
-        input.required=true;
+      const container = document.getElementById("playerInputFields");
+      if (container.querySelectorAll("input").length === 1) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = "playerName";
+        input.placeholder = "Player 2 (required)";
+        input.required = true;
         container.appendChild(input);
       }
     });
 
-    function addPlayerField(){
-      const container=document.getElementById('playerInputFields');
-      const count=container.querySelectorAll('input').length+1;
-      if(count>7){ alert("Seven players is our legal max. Unless you wish to unionize."); return; }
-      const input=document.createElement('input');
-      input.type='text';
-      input.name='playerName';
-      input.placeholder = count===2 ? 'Player 2 (required)' : `Player ${count} (optional)`;
-      input.required = count===2;
+    function dismissDisclaimer() {
+      document.getElementById("disclaimerOverlay").style.display = "none";
+      // Start tutorial if not completed
+      if (!window.__tutorialCompleted) {
+        startPreGameTutorial();
+      } else {
+        document.getElementById("playerSetupBox").style.display = "block";
+      }
+    }
+
+    function addPlayerField() {
+      const container = document.getElementById("playerInputFields");
+      const count = container.querySelectorAll("input").length + 1;
+      if (count > 7) return alert("Seven players is our legal max. Unless you wish to unionize.");
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.name = "playerName";
+      if (count === 2) {
+        input.placeholder = "Player 2 (required)";
+        input.required = true;
+      } else if (count > 2) {
+        input.placeholder = `Player ${count} (optional)`;
+        input.required = false;
+      }
       container.appendChild(input);
     }
   </script>
+</body>
+</html>
+<!-- Retaining repeated closing segments from original file -->
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
+</body>
+</html>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
 </body>
 </html>
 <!-- partial -->
