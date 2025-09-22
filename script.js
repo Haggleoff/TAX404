@@ -6,7 +6,8 @@
  * - Hardened popup system (prevents null errors)
  * - Enhanced Final Results (winner ribbons, rank bars)
  * - AMT only shown if applied
- * - Exit sequence with animated logo fly-out + thanks screen
+ * - Simple Exit Screen (no animation) preserving last player names
+ * - FIX: Reset popup buttons after multi-option "Clear Debts" popup
  ************************************************************/
 
 let players = [];
@@ -17,6 +18,7 @@ let timeLeft = 60;
 let timerRunningState = true;
 
 let disallowedNormalCards = [];
+let lastPlayerNames = []; // preserve between games
 
 const debtCategories = [
   "Haggie","Stomp&Bray","Lawffy","Finnley","Hoobert","Droolski","Vinnie","Twiggles",
@@ -92,11 +94,6 @@ function clearAllDebtsBetween(a,b){
   debtCategories.forEach(cat=>{
     debts[a][b][cat]=0;
     debts[b][a][cat]=0;
-  });
-}
-function clearSideDebts(from,to){
-  debtCategories.forEach(cat=>{
-    debts[from][to][cat]=0;
   });
 }
 
@@ -320,14 +317,14 @@ function attachDebtSheetEvents(otherIdx){
   }, { once:true });
 }
 
-/* New: Multi-option Clear Debts popup while sheet stays open */
+/* Clear debts option popup (while sheet stays open) */
 function openClearDebtsOptions(a,b){
   ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const btnBox=document.getElementById('customPopupButtons');
   if(!overlay||!msg||!btnBox) return;
-  overlay.style.zIndex='2100'; // above bottom sheet
+  overlay.style.zIndex='2100';
   msg.innerHTML=`
     <h2 class="lilita" style="color:var(--color-accent); margin:0 0 .55rem;">Clear Debts</h2>
     <p style="font-size:1rem;line-height:1.35;margin:0 0 .8rem;">
@@ -343,34 +340,23 @@ function openClearDebtsOptions(a,b){
   `;
   overlay.style.display='flex';
 
-  function close(){
+  function closePopup(){
     overlay.style.display='none';
     overlay.style.zIndex='1200';
   }
   document.getElementById('clearYouOweBtn').onclick=()=>{
     debtCategories.forEach(cat=>debts[a][b][cat]=0);
-    normalizePair(a,b);
-    refreshAllCategoryRows();
-    updatePairHeader(a,b);
-    refreshOverviewOnly();
-    close();
+    normalizePair(a,b); refreshAllCategoryRows(); updatePairHeader(a,b); refreshOverviewOnly(); closePopup();
   };
   document.getElementById('clearTheyOweBtn').onclick=()=>{
     debtCategories.forEach(cat=>debts[b][a][cat]=0);
-    normalizePair(a,b);
-    refreshAllCategoryRows();
-    updatePairHeader(a,b);
-    refreshOverviewOnly();
-    close();
+    normalizePair(a,b); refreshAllCategoryRows(); updatePairHeader(a,b); refreshOverviewOnly(); closePopup();
   };
   document.getElementById('clearBothSidesBtn').onclick=()=>{
     clearAllDebtsBetween(a,b);
-    refreshAllCategoryRows();
-    updatePairHeader(a,b);
-    refreshOverviewOnly();
-    close();
+    refreshAllCategoryRows(); updatePairHeader(a,b); refreshOverviewOnly(); closePopup();
   };
-  document.getElementById('cancelClearBtn').onclick=close;
+  document.getElementById('cancelClearBtn').onclick=closePopup;
 }
 
 function refreshCategoryRow(cat){
@@ -1007,84 +993,68 @@ function getAuditRiskLevel(p){
   return "Low";
 }
 
-/* Exit & Reset */
+/* Exit & Reset (Simple Exit Screen) */
 function exitToSetup(){
-  startExitSequence();
-}
-function backToNameInput(){
+  // Preserve names BEFORE clearing
+  lastPlayerNames = players.map(p=>p.name);
+  // Clear game state
   players=[]; debts=[]; disallowedNormalCards=[];
   currentPlayerIndex=0;
   if(timerInterval) clearInterval(timerInterval);
   timerRunningState=true; timeLeft=60;
-  document.getElementById('playerSetupBox').style.display='block';
-  document.getElementById('mainGameContainer').innerHTML='';
-}
 
-/* Animated Exit Sequence */
-function startExitSequence(){
-  // Reset game state but do NOT immediately show setup
-  players=[]; debts=[]; disallowedNormalCards=[];
-  currentPlayerIndex=0;
-  if(timerInterval) clearInterval(timerInterval);
-  timerRunningState=true; timeLeft=60;
-  const setup=document.getElementById('playerSetupBox');
-  if(setup) setup.style.display='none';
   const main=document.getElementById('mainGameContainer');
-  if(main) main.innerHTML='';
+  if(main){
+    main.innerHTML = `
+      <div class="exit-screen-wrapper">
+        <h2>Thank you for Haggleoffing...</h2>
+        <p>Your mediocre filings slipped into the shredder before the Haggie Revenue Service could audit a single page. You’re welcome! Haggleoff again?</p>
+        <button id="playAgainBtn" class="styled-btn" style="max-width:240px;">Play Again</button>
+      </div>`;
+    const btn=document.getElementById('playAgainBtn');
+    if(btn){
+      btn.onclick=()=>{
+        restorePlayerNamesAndSetup();
+      };
+    }
+  }
+}
 
-  const existing=document.getElementById('exitSequenceContainer');
-  if(existing) existing.remove();
-
-  const siteHeader=document.getElementById('siteHeader');
-  if(siteHeader) siteHeader.style.visibility='hidden';
-
-  const container=document.createElement('div');
-  container.id='exitSequenceContainer';
-  container.innerHTML=`
-    <div id="flyHeaderContainer">
-      <img id="flyLogo" src="logo.png" alt="Haggleoff Logo">
-      <h1 id="flyTaxText" class="lilita">TAX404</h1>
-    </div>
-    <div id="exitMessageArea" style="width:100%;max-width:780px;display:none;">
-      <h2 class="exit-thanks">Thank you for Haggleoffing...</h2>
-      <p class="exit-subline">Your mediocre filings slipped into the shredder before Haggie Revenue Service could audit a single page. Haggleoff again?</p>
-      <div style="display:flex;justify-content:center;">
-        <button id="playAgainBtn" class="styled-btn play-again-btn" style="max-width:240px;">Play Again</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(container);
-
-  requestAnimationFrame(()=>{
-    const fly=document.getElementById('flyHeaderContainer');
-    const headerRect=siteHeader.getBoundingClientRect();
-    const flyRect=fly.getBoundingClientRect();
-
-    const targetX = (headerRect.left + headerRect.width/2) - (flyRect.left + flyRect.width/2);
-    const targetY = (headerRect.top + headerRect.height/2) - (flyRect.top + flyRect.height/2);
-
-    fly.style.transform = `translate(-50%,-50%) scale(1.15)`;
-    void fly.offsetWidth;
-    fly.style.transform = `translate(calc(-50% + ${targetX}px), calc(-50% + ${targetY}px)) scale(1)`;
-
-    fly.addEventListener('transitionend', ()=>{
-      fly.classList.add('fly-arrived');
-      setTimeout(()=>{
-        if(siteHeader) siteHeader.style.visibility='visible';
-        const msg=document.getElementById('exitMessageArea');
-        if(msg) msg.style.display='block';
-        const playAgain=document.getElementById('playAgainBtn');
-        if(playAgain){
-          playAgain.onclick=()=>{
-            container.remove();
-            document.getElementById('playerSetupBox').style.display='block';
-            window.scrollTo({top:0,behavior:'smooth'});
-          };
-        }
-        setTimeout(()=>{ fly.remove(); },450);
-      },120);
-    }, { once:true });
+function restorePlayerNamesAndSetup(){
+  const setupBox=document.getElementById('playerSetupBox');
+  const fieldsContainer=document.getElementById('playerInputFields');
+  if(!setupBox||!fieldsContainer) return;
+  fieldsContainer.innerHTML='';
+  const names = lastPlayerNames.length>=2 ? lastPlayerNames : ['Player 1','Player 2'];
+  names.forEach((name,idx)=>{
+    const input=document.createElement('input');
+    input.type='text';
+    input.name='playerName';
+    input.maxLength=10;
+    input.placeholder = `Player ${idx+1}${idx<2?' (required)':''}`;
+    input.required = idx<2;
+    input.value=name;
+    fieldsContainer.appendChild(input);
   });
+  if(names.length<2){
+    for(let i=names.length;i<2;i++){
+      const input=document.createElement('input');
+      input.type='text';
+      input.name='playerName';
+      input.maxLength=10;
+      input.placeholder=`Player ${i+1} (required)`;
+      input.required=true;
+      fieldsContainer.appendChild(input);
+    }
+  }
+  setupBox.style.display='block';
+  document.getElementById('mainGameContainer').innerHTML='';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function backToNameInput(){
+  // legacy path (not used now)
+  restorePlayerNamesAndSetup();
 }
 
 /* ------------ Robust Popup System ------------ */
@@ -1104,29 +1074,31 @@ function ensurePopupElements(){
       </div>`;
     document.body.appendChild(overlay);
   } else {
-    if(!document.getElementById('customPopupYes')){
-      const btnBox=overlay.querySelector('#customPopupButtons') || (()=> {
-        const b=document.createElement('div');
-        b.id='customPopupButtons';
-        b.style.cssText='display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin-top:0.9rem;';
-        overlay.querySelector('#customPopupBox')?.appendChild(b);
-        return b;
-      })();
-      const yes=document.createElement('button');
-      yes.id='customPopupYes'; yes.className='styled-btn'; yes.textContent='OK';
-      btnBox.appendChild(yes);
+    const btnBox=overlay.querySelector('#customPopupButtons');
+    if(btnBox){
+      // If standard buttons missing or extra buttons present, reset to baseline
+      if(!btnBox.querySelector('#customPopupYes') || !btnBox.querySelector('#customPopupNo') || btnBox.children.length>2){
+        btnBox.innerHTML=`
+          <button id="customPopupYes" class="styled-btn">OK</button>
+          <button id="customPopupNo" class="btn-neutral styled-btn">No</button>`;
+      }
     }
-    if(!document.getElementById('customPopupNo')){
-      const btnBox=overlay.querySelector('#customPopupButtons');
-      const no=document.createElement('button');
-      no.id='customPopupNo'; no.className='btn-neutral styled-btn'; no.textContent='No';
-      btnBox.appendChild(no);
-    }
+  }
+}
+
+/* NEW: Hard reset of popup buttons before displaying any generic popup */
+function resetStandardPopupButtons(){
+  const btnBox=document.getElementById('customPopupButtons');
+  if(btnBox){
+    btnBox.innerHTML=`
+      <button id="customPopupYes" class="styled-btn">OK</button>
+      <button id="customPopupNo" class="btn-neutral styled-btn">No</button>`;
   }
 }
 
 function customPopup(message, callback, isHtml=false, yesText="Yes", noText="No", okOnly=false){
   ensurePopupElements();
+  resetStandardPopupButtons(); // ensure no residual buttons from specialized popups
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const yesBtn=document.getElementById('customPopupYes');
@@ -1158,6 +1130,7 @@ function customPopup(message, callback, isHtml=false, yesText="Yes", noText="No"
 
 function customHTMLPopup(message, html, callback){
   ensurePopupElements();
+  resetStandardPopupButtons();
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const yesBtn=document.getElementById('customPopupYes');
@@ -1195,6 +1168,7 @@ document.getElementById('playerForm').addEventListener('submit', e=>{
   debts=Array(players.length).fill(null).map(()=>Array(players.length).fill(null).map(()=>{
     const o={}; debtCategories.forEach(c=>o[c]=0); return o;
   }));
+  lastPlayerNames = names.slice(); // update preserved names
   document.getElementById('playerSetupBox').style.display='none';
   const msg=`<span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">Reloading resets your progress.</span><br><br>
   <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player receives 1 free starting property during Setup,</span><br>
