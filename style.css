@@ -15,6 +15,7 @@
    - Enhanced Final Results (winner ribbons, rank bars)
    - AMT only shown if applied
    - Simple Exit Screen (no animation)
+   - Debt sheet summary relocated above footer + in-sheet navigation
    ========================================================= */
 
 :root {
@@ -278,6 +279,7 @@ input:focus, select:focus {
   transition:border-color var(--transition-med), box-shadow var(--transition-med), transform var(--transition-med), background var(--transition-med);
   position:relative;
   scroll-snap-align:center;
+  cursor:pointer;
 }
 .player-card-inner {
   width:100%;
@@ -345,9 +347,17 @@ input:focus, select:focus {
   align-items:center;
   text-align:center;
 }
-.player-card-actions { margin-top:0.55rem; width:100%; display:flex; flex-direction:column; gap:0.4rem; align-items:center; }
-.player-card:not(.active) .player-card-actions { display:none; }
-.card-btn { max-width:220px; width:80%; font-size:1rem; padding:0.6rem 1rem; }
+
+/* Subtle hint replacing Log button */
+.player-card-hint {
+  font-size:1rem;
+  letter-spacing:0.5px;
+  color:var(--color-fg-muted);
+  font-family:var(--font-display);
+  margin-top:0.45rem;
+  user-select:none;
+  pointer-events:none;
+}
 
 /* Donation rows */
 .donate-row {
@@ -493,6 +503,63 @@ input:focus, select:focus {
   text-align:center;
 }
 
+/* Relocated bottom summary block */
+.debt-pair-bottom-summary {
+  padding:0.6rem 0.4rem 0.55rem;
+  text-align:center;
+  border-top:1px solid #3a3a3a;
+  margin-top:0.5rem;
+  font-family:var(--font-display);
+  display:flex;
+  flex-direction:column;
+  gap:0.45rem;
+  letter-spacing:.4px;
+}
+.debt-swipe-hint {
+  font-size:0.7rem;
+  color:#666;
+  letter-spacing:.4px;
+  margin-top:-0.2rem;
+  user-select:none;
+}
+.debt-pair-nav {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.65rem;
+  flex-wrap:nowrap;
+}
+.debt-pair-nav-btn {
+  background:#313131;
+  border:2px solid #3a3a3a;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--font-display);
+  font-size:1.2rem;
+  color:var(--color-accent);
+  cursor:pointer;
+  transition:background .2s;
+}
+.debt-pair-nav-btn:active { background:#3d3d3d; }
+.debt-pair-nav-btn:disabled {
+  opacity:.32;
+  cursor:default;
+}
+.debt-pair-title {
+  font-size:1.15rem;
+  color:var(--color-accent);
+  letter-spacing:.5px;
+  font-family:var(--font-display);
+  min-width:160px;
+  text-align:center;
+}
+.debt-pair-title .other-player { color:#d9d9d9; }
+
+/* Final detail body */
 .final-detail-body {
   flex:1 1 auto;
   overflow-y:auto;
@@ -657,6 +724,10 @@ input:focus, select:focus {
 #calculatorTimerWrapper { position:absolute; top:12px; right:16px; z-index:10; }
 #calculatorTimerDisplay.player-card-timer { font-size:2.2rem; background:none; border:none; padding:0; margin:0; min-width:56px; text-align:right; cursor:pointer; }
 
+/* Debt sheet timer */
+#debtSheetTimerWrapper { position:absolute; top:10px; right:16px; z-index:10; }
+#debtSheetTimerDisplay.player-card-timer { font-size:2.1rem; background:none; border:none; padding:0; margin:0; min-width:56px; text-align:right; cursor:pointer; }
+
 /* Outstanding Debts Popup */
 .outstanding-wrapper {
   text-align:left; font-size:1rem; line-height:1.35;
@@ -745,6 +816,7 @@ input:focus, select:focus {
     padding:0.95rem 0.85rem calc(1rem + var(--safe-bottom));
   }
   .debt-group-toggle { padding:0.32rem 0.9rem; }
+  .debt-pair-title { min-width:140px; }
 }
 
 /* Extra small */
