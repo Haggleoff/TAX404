@@ -8,6 +8,13 @@
  * - AMT only shown if applied
  * - Simple Exit Screen (no animation) preserving last player names
  * - FIX: Reset popup buttons after multi-option "Clear Debts" popup
+ * - UPDATED AMT: 30–39 => 5%, 40+ => 10% (applies only if post-break tax would be 0)
+ * - UPDATED NET SHARE (2025-09-22):
+ *     Net Share & bar width are based on each player's share of the
+ *     TOTAL (Haggleoffs + Properties) entered across all players.
+ * - UPDATED NET SHARE DISPLAY (2025-09-22):
+ *     Net Share now shows as a whole percentage (no decimals) and
+ *     removed the trailing "of Total" wording.
  ************************************************************/
 
 let players = [];
@@ -117,7 +124,7 @@ function showPlayerCards(){
       <div class="player-card${i===currentPlayerIndex?' active':''}" data-index="${i}">
         <div class="player-card-inner">
           <div class="player-card-name">${p.name}</div>
-          <div class="player-card-timer" id="playerTimer" ${i===currentPlayerIndex?'style="cursor:pointer;"':''}>
+            <div class="player-card-timer" id="playerTimer" ${i===currentPlayerIndex?'style="cursor:pointer;"':''}>
             ${i===currentPlayerIndex? timeLeft : ''}
           </div>
           <div class="player-card-progress">${renderCardProgress(p.progress)}</div>
@@ -494,7 +501,7 @@ function loadCalculator(){
           <div class="normal-cards-container">
             ${blocks}
           </div>
-          <button id="plusNormal" class="btn-round">+</button>
+            <button id="plusNormal" class="btn-round">+</button>
         </div>
 
         <span class="streak-helper">Each streak (5 cards) = 1 Tax Break</span>
@@ -694,7 +701,7 @@ function collectOutstandingDebtors(){
       });
       if(total>0){
         if(!debtorsMap.has(a)){
-          debtorsMap.set(a,{ debtorIndex:a, totalOwed:0, details:[] });
+            debtorsMap.set(a,{ debtorIndex:a, totalOwed:0, details:[] });
         }
         const entry=debtorsMap.get(a);
         entry.totalOwed += total;
@@ -826,17 +833,22 @@ function calculateFinalTaxes(){
     const postBase = Math.max(0, base - breaks);
     pl.tax = Math.min(postBase, coins);
     pl.amtApplied=false; pl.amtPercent='';
+
+    // UPDATED AMT RULES:
+    // If normal tax after breaks is 0, apply minimum:
+    // 30–39 coins => 5%, 40+ coins => 10%
     if(pl.tax===0){
-      if(coins>=34 && coins<=39){
-        pl.tax=Math.floor(coins*0.03);
-        pl.amtApplied=true; pl.amtPercent='3%';
-      } else if(coins>=40){
-        pl.tax=Math.floor(coins*0.05);
+      if(coins>=30 && coins<=39){
+        pl.tax = Math.floor(coins*0.05);
         pl.amtApplied=true; pl.amtPercent='5%';
+      } else if (coins>=40){
+        pl.tax = Math.floor(coins*0.10);
+        pl.amtApplied=true; pl.amtPercent='10%';
       }
     }
   });
 
+  // Winner determination still based on NET INCOME (unchanged)
   const netIncomes=players.map(p=>p.coins-p.tax);
   const maxNet=Math.max(...netIncomes);
   const contenders=players.filter(p=>p.coins-p.tax===maxNet);
@@ -848,7 +860,9 @@ function calculateFinalTaxes(){
     headerRibbon=`<div class="final-results-ribbon co"><span class="emoji">🤝</span><span>${contenders.map(c=>c.name).join(', ')} Tie</span></div>`;
   }
 
-  const topNet=maxNet>0?maxNet:1;
+  // NET SHARE BASIS: sum of all (coins + properties) entered.
+  const totalAssets = players.reduce((s,p)=> s + p.coins + p.properties, 0) || 1;
+
   const sortedIndices=[...players.keys()].sort((a,b)=>{
     const netA=players[a].coins-players[a].tax;
     const netB=players[b].coins-players[b].tax;
@@ -866,7 +880,12 @@ function calculateFinalTaxes(){
     const effRate = coins? Math.round((p.tax/coins)*100):0;
     const isWinner = contenders.includes(p);
     const tie = contenders.length>1;
-    const fillPct = Math.min(100, (netIncome/topNet)*100).toFixed(2);
+
+    // Percentage share (no decimals displayed)
+    const rawShare = ((coins + props) / totalAssets) * 100;
+    const barPct = Math.min(100, rawShare);
+    const displayPct = Math.round(barPct);
+
     const badgeSet = `
       <div class="final-card-badges">
         <span class="final-badge">Income <span class="value">${coins}</span></span>
@@ -882,7 +901,7 @@ function calculateFinalTaxes(){
         <div class="final-result-name">${p.name}</div>
         ${badgeSet}
         <div class="rank-bar-wrap">
-          <div class="rank-bar-fill ${tie?'tie':''}" style="width:${fillPct}%"></div>
+          <div class="rank-bar-fill ${tie?'tie':''}" style="width:${barPct}%;"></div>
         </div>
         <div class="final-result-stats">
           <div>Tax: <span style="color:#d4af7f;">${p.tax}</span>${p.amtApplied?` <span style="color:#dc143c;font-size:.78rem;background:#3a1d1d;padding:.15rem .45rem;border-radius:6px;letter-spacing:.5px;margin-left:.35rem;">AMT ${p.amtPercent}</span>`:''}</div>
@@ -890,7 +909,7 @@ function calculateFinalTaxes(){
           <div>Audit Risk: <span style="color:#d4af7f;">${getAuditRiskLevel(p)}</span></div>
           <em style="color:#d4af7f;font-style:italic;">${message}</em>
         </div>
-        <div class="final-result-net">Net Share: ${fillPct}% of Top</div>
+        <div class="final-result-net">Net Share: ${displayPct}%</div>
         <a href="#" onclick="showTaxBreakdown(${i});return false;" style="color:#f1f1f1;text-decoration:underline;font-style:italic;margin-top:.4rem;text-align:center;display:block;">More Info</a>
       </div>`;
   });
