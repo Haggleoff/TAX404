@@ -15,6 +15,10 @@
  * - UPDATED NET SHARE DISPLAY (2025-09-22):
  *     Net Share now shows as a whole percentage (no decimals) and
  *     removed the trailing "of Total" wording.
+ * - CARD SELECTION IMPROVEMENTS (2025-09-22):
+ *     Added dynamic side padding so first/last cards can center (desktop/tablet).
+ *     Added suppression flag to stop scroll handler from overriding
+ *     a clicked card while auto-centering animation completes.
  ************************************************************/
 
 let players = [];
@@ -42,6 +46,9 @@ const debtCategoryGroups = {
 let debts = [];
 
 let normalDonated=0, powerDonated=0, tempProgress=0;
+
+/* Scroll selection suppression flag */
+let suppressScrollSelect = false;
 
 /* Utility helpers */
 function getImageName(name){
@@ -114,6 +121,7 @@ function renderCardProgress(p){
     p>0? Array(p).fill('<div class="donate-block"></div>').join(''):''
   }</div>`;
 }
+
 function showPlayerCards(){
   resetDonationState();
   let html='';
@@ -157,6 +165,9 @@ function showPlayerCards(){
   timeLeft=60; timerRunningState=true;
   startTimer();
   updateTimerDisplays();
+
+  // Allow layout to settle then compute edge padding.
+  setTimeout(setPlayerRowEdgePadding, 0);
 }
 
 /* Debt Overview */
@@ -613,6 +624,22 @@ function updateTimerDisplays(){
 }
 
 /* Card Interaction / Scroll */
+
+/* Dynamic edge padding so first/last cards can center */
+function setPlayerRowEdgePadding(){
+  const row = document.getElementById('playerCardsRow');
+  if(!row) return;
+  const firstCard = row.querySelector('.player-card');
+  if(!firstCard) return;
+  const cardWidth = firstCard.offsetWidth;
+  const rowWidth = row.clientWidth;
+  // Padding needed so card center can align with container center
+  let pad = (rowWidth / 2) - (cardWidth / 2);
+  if(pad < 16) pad = 16; // minimum
+  row.style.paddingLeft = pad + 'px';
+  row.style.paddingRight = pad + 'px';
+}
+
 function setupPlayerCardClicks(){
   setTimeout(()=>{
     const row=document.getElementById('playerCardsRow'); if(!row)return;
@@ -621,6 +648,7 @@ function setupPlayerCardClicks(){
       card.onclick=e=>{
         if(e.target.closest('.card-btn')) return;
         if(i===currentPlayerIndex) return;
+        suppressScrollSelect = true;
         currentPlayerIndex=i;
         resetDonationState();
         if(timerInterval) clearInterval(timerInterval);
@@ -630,16 +658,22 @@ function setupPlayerCardClicks(){
         startTimer();
         updateTimerDisplays();
         bindTimerClick();
+        // Recompute padding (in case layout changed) & release suppression after scroll
+        setPlayerRowEdgePadding();
+        setTimeout(()=>{ suppressScrollSelect=false; },450);
       };
     });
   },0);
 }
+
 function setupCardScrollSync(){
   setTimeout(()=>{
     const row=document.getElementById('playerCardsRow'); if(!row)return;
     let st=null;
     row.onscroll=function(){
+      if(suppressScrollSelect) return;
       const cards=[...row.querySelectorAll('.player-card')];
+      if(cards.length===0) return;
       const rr=row.getBoundingClientRect();
       const center=rr.left+rr.width/2;
       let min=Infinity, idx=0;
@@ -662,6 +696,7 @@ function setupCardScrollSync(){
     };
   },0);
 }
+
 function scrollToActiveCard(){
   setTimeout(()=>{
     const row=document.getElementById('playerCardsRow');
@@ -674,7 +709,25 @@ function scrollToActiveCard(){
     }
   },0);
 }
-window.addEventListener('orientationchange', ()=> setTimeout(scrollToActiveCard, 400));
+window.addEventListener('orientationchange', ()=> {
+  setTimeout(()=>{
+    setPlayerRowEdgePadding();
+    scrollToActiveCard();
+  }, 400);
+});
+
+/* Debounce helper */
+function debounce(fn, wait=120){
+  let t;
+  return (...args)=>{
+    clearTimeout(t);
+    t=setTimeout(()=>fn(...args), wait);
+  };
+}
+window.addEventListener('resize', debounce(()=>{
+  setPlayerRowEdgePadding();
+  scrollToActiveCard();
+},150));
 
 /* Outstanding Debts Gate */
 function showEndgame(){
@@ -834,9 +887,7 @@ function calculateFinalTaxes(){
     pl.tax = Math.min(postBase, coins);
     pl.amtApplied=false; pl.amtPercent='';
 
-    // UPDATED AMT RULES:
-    // If normal tax after breaks is 0, apply minimum:
-    // 30–39 coins => 5%, 40+ coins => 10%
+    // UPDATED AMT RULES
     if(pl.tax===0){
       if(coins>=30 && coins<=39){
         pl.tax = Math.floor(coins*0.05);
@@ -848,7 +899,6 @@ function calculateFinalTaxes(){
     }
   });
 
-  // Winner determination still based on NET INCOME (unchanged)
   const netIncomes=players.map(p=>p.coins-p.tax);
   const maxNet=Math.max(...netIncomes);
   const contenders=players.filter(p=>p.coins-p.tax===maxNet);
@@ -860,7 +910,6 @@ function calculateFinalTaxes(){
     headerRibbon=`<div class="final-results-ribbon co"><span class="emoji">🤝</span><span>${contenders.map(c=>c.name).join(', ')} Tie</span></div>`;
   }
 
-  // NET SHARE BASIS: sum of all (coins + properties) entered.
   const totalAssets = players.reduce((s,p)=> s + p.coins + p.properties, 0) || 1;
 
   const sortedIndices=[...players.keys()].sort((a,b)=>{
@@ -881,7 +930,6 @@ function calculateFinalTaxes(){
     const isWinner = contenders.includes(p);
     const tie = contenders.length>1;
 
-    // Percentage share (no decimals displayed)
     const rawShare = ((coins + props) / totalAssets) * 100;
     const barPct = Math.min(100, rawShare);
     const displayPct = Math.round(barPct);
@@ -1095,7 +1143,6 @@ function ensurePopupElements(){
   } else {
     const btnBox=overlay.querySelector('#customPopupButtons');
     if(btnBox){
-      // If standard buttons missing or extra buttons present, reset to baseline
       if(!btnBox.querySelector('#customPopupYes') || !btnBox.querySelector('#customPopupNo') || btnBox.children.length>2){
         btnBox.innerHTML=`
           <button id="customPopupYes" class="styled-btn">OK</button>
@@ -1117,7 +1164,7 @@ function resetStandardPopupButtons(){
 
 function customPopup(message, callback, isHtml=false, yesText="Yes", noText="No", okOnly=false){
   ensurePopupElements();
-  resetStandardPopupButtons(); // ensure no residual buttons from specialized popups
+  resetStandardPopupButtons();
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const yesBtn=document.getElementById('customPopupYes');
