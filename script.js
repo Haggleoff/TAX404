@@ -6,6 +6,11 @@
  * - Timer now also appears & functions inside Outstanding Debts sheet
  * - Replaced active card "Log" button with subtle "Select" hint;
  *   clicking the active player card now opens the donation calculator.
+ * - Donation advance scroll refined:
+ *   When leaving a player's turn (Confirm / No Donations / Took from Charity),
+ *   the player cards now animate smoothly from the previous active player
+ *   to the next player, without the old jarring jump or starting-from-left snap.
+ * - Updated player name maximum length to 20 characters.
  ************************************************************/
 
 let players = [];
@@ -36,6 +41,9 @@ let normalDonated=0, powerDonated=0, tempProgress=0;
 
 /* Scroll selection suppression flag */
 let suppressScrollSelect = false;
+
+/* Pending animated advance info (from previous player to new active) */
+let pendingAdvance = null;
 
 /* Utility helpers */
 function getImageName(name){
@@ -123,7 +131,7 @@ function showPlayerCards(){
             ${i===currentPlayerIndex? timeLeft : ''}
           </div>
           <div class="player-card-progress">${renderCardProgress(p.progress)}</div>
-          <div class="player-card-breaks">
+            <div class="player-card-breaks">
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
@@ -142,7 +150,38 @@ function showPlayerCards(){
     <div style="text-align:center;margin:2rem auto 0;">
       <button id="endgameTaxesBtn" class="styled-btn" onclick="showEndgame()">Endgame Taxes</button>
     </div>`;
-  scrollToActiveCard();
+
+  // Set edge padding before scroll calculations
+  setPlayerRowEdgePadding();
+
+  const row = document.getElementById('playerCardsRow');
+
+  if(pendingAdvance && row){
+    const fromIdx = pendingAdvance.from;
+    const toIdx = pendingAdvance.to;
+    const fromCard = row.querySelector(`.player-card[data-index="${fromIdx}"]`);
+    const toCard = row.querySelector(`.player-card[data-index="${toIdx}"]`);
+    if(fromCard && toCard && fromIdx !== toIdx){
+      const rr=row.getBoundingClientRect();
+      const fr=fromCard.getBoundingClientRect();
+      const desiredFromLeft = row.scrollLeft + (fr.left+fr.width/2) - (rr.left+rr.width/2);
+      const prevBehavior=row.style.scrollBehavior;
+      row.style.scrollBehavior='auto';
+      row.scrollLeft = desiredFromLeft;
+      requestAnimationFrame(()=>{
+        const tr=toCard.getBoundingClientRect();
+        const desiredToLeft = row.scrollLeft + (tr.left+tr.width/2) - (rr.left+rr.width/2);
+        row.style.scrollBehavior='smooth';
+        row.scrollTo({ left: desiredToLeft });
+        setTimeout(()=>{ row.style.scrollBehavior=prevBehavior; },500);
+      });
+    } else {
+      scrollToActiveCard();
+    }
+  } else {
+    scrollToActiveCard();
+  }
+
   setupCardScrollSync();
   setupPlayerCardClicks();
   bindTimerClick();
@@ -150,7 +189,8 @@ function showPlayerCards(){
   timeLeft=60; timerRunningState=true;
   startTimer();
   updateTimerDisplays();
-  setTimeout(setPlayerRowEdgePadding, 0);
+
+  pendingAdvance = null;
 }
 
 /* Debt Overview */
@@ -267,7 +307,7 @@ function renderDebtSheet(otherIdx){
     <div class="debt-sheet-header">
       <div class="debt-sheet-grip"></div>
       <div id="debtSheetTimerWrapper"><span id="debtSheetTimerDisplay" class="player-card-timer">${timeLeft}</span></div>
-      <h3 class="debt-sheet-title" style="font-size:1.1rem;color:#d9d9d9;">Outstanding Debts</h3>
+      <h3 class="debt-sheet-title lilita" style="font-size:1.1rem;color:#d9d9d9;">Outstanding Debts</h3>
     </div>
     <div class="debt-cat-groups">${groups}</div>
     <div class="debt-pair-bottom-summary" id="debtPairSummaryBottom">
@@ -617,7 +657,9 @@ function tookCharityAction(i){
   nextPlayer();
 }
 function nextPlayer(){
+  const from = currentPlayerIndex;
   currentPlayerIndex=(currentPlayerIndex+1)%players.length;
+  pendingAdvance = { from, to: currentPlayerIndex };
   showPlayerCards();
 }
 
@@ -678,7 +720,6 @@ function setupPlayerCardClicks(){
     const cards=[...row.querySelectorAll('.player-card')];
     cards.forEach((card,i)=>{
       card.onclick=e=>{
-        // If active card clicked (and not directly clicking timer), open calculator
         if(i===currentPlayerIndex){
           if(!e.target.closest('.player-card-timer')) loadCalculator();
           return;
@@ -690,7 +731,6 @@ function setupPlayerCardClicks(){
         if(timerInterval) clearInterval(timerInterval);
         timeLeft=60; timerRunningState=true;
         cards.forEach((c,idx)=>c.classList.toggle('active',idx===i));
-        // Replace/insert hint on new active card
         cards.forEach((c,idx)=>{
           const hint=c.querySelector('.player-card-hint');
           if(hint) hint.remove();
@@ -704,7 +744,7 @@ function setupPlayerCardClicks(){
             }
           }
         });
-        scrollToActiveCard();
+        scrollToActiveCard(true); // instantaneous when clicking manually
         startTimer();
         updateTimerDisplays();
         bindTimerClick();
@@ -753,11 +793,11 @@ function setupCardScrollSync(){
         bindTimerClick();
       }
       if(st) clearTimeout(st);
-      st=setTimeout(()=>scrollToActiveCard(),180);
+      st=setTimeout(()=>scrollToActiveCard(true),180);
     };
   },0);
 }
-function scrollToActiveCard(){
+function scrollToActiveCard(instant=false){
   setTimeout(()=>{
     const row=document.getElementById('playerCardsRow');
     const active=row?row.querySelector('.player-card.active'):null;
@@ -765,14 +805,21 @@ function scrollToActiveCard(){
       const rr=row.getBoundingClientRect();
       const ar=active.getBoundingClientRect();
       const left=row.scrollLeft + (ar.left+ar.width/2)-(rr.left+rr.width/2);
-      row.scrollTo({left,behavior:'smooth'});
+      if(instant){
+        const prevBehavior=row.style.scrollBehavior;
+        row.style.scrollBehavior='auto';
+        row.scrollTo({left});
+        requestAnimationFrame(()=>{ row.style.scrollBehavior=prevBehavior; });
+      } else {
+        row.scrollTo({left,behavior:'smooth'});
+      }
     }
   },0);
 }
 window.addEventListener('orientationchange', ()=> {
   setTimeout(()=>{
     setPlayerRowEdgePadding();
-    scrollToActiveCard();
+    scrollToActiveCard(true);
   }, 400);
 });
 function debounce(fn, wait=120){
@@ -784,7 +831,7 @@ function debounce(fn, wait=120){
 }
 window.addEventListener('resize', debounce(()=>{
   setPlayerRowEdgePadding();
-  scrollToActiveCard();
+  scrollToActiveCard(true);
 },150));
 
 /* Outstanding Debts Gate */
@@ -1141,7 +1188,7 @@ function restorePlayerNamesAndSetup(){
     const input=document.createElement('input');
     input.type='text';
     input.name='playerName';
-    input.maxLength=10;
+    input.maxLength=20;
     input.placeholder = `Player ${idx+1}${idx<2?' (required)':''}`;
     input.required = idx<2;
     input.value=name;
@@ -1152,7 +1199,7 @@ function restorePlayerNamesAndSetup(){
       const input=document.createElement('input');
       input.type='text';
       input.name='playerName';
-      input.maxLength=10;
+      input.maxLength=20;
       input.placeholder=`Player ${i+1} (required)`;
       input.required=true;
       fieldsContainer.appendChild(input);
@@ -1251,8 +1298,8 @@ function customHTMLPopup(message, html, callback){
 document.getElementById('playerForm').addEventListener('submit', e=>{
   e.preventDefault();
   let names=[...e.target.querySelectorAll("input[name='playerName']")].map(i=>i.value.trim());
-  if(names.some(n=>n.length>10)){
-    customPopup("Player names must be 10 characters or fewer. Please shorten the long names.");
+  if(names.some(n=>n.length>20)){
+    customPopup("Player names must be 20 characters or fewer. Please shorten the long names.");
     return;
   }
   names=names.filter(Boolean);

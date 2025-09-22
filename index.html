@@ -62,6 +62,15 @@
 </head>
 <body>
 <!-- partial:index.partial.html -->
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Haggleoff TAX404</title>
+  <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -97,7 +106,7 @@
     <form id="playerForm" class="calculatorBox" autocomplete="off">
       <h2 class="lilita" style="color:var(--color-accent); margin-top:0;">Enter Player Names</h2>
       <div id="playerInputFields">
-        <input type="text" name="playerName" maxlength="10" placeholder="Player 1 (required)" required />
+        <input type="text" name="playerName" maxlength="20" placeholder="Player 1 (required)" required />
       </div>
       <div class="setup-actions" id="playerSetupActions">
         <button type="button" class="btn-neutral styled-btn setup-btn" onclick="addPlayerField()">+ Add Player</button>
@@ -147,7 +156,7 @@
         const input=document.createElement('input');
         input.type='text';
         input.name='playerName';
-        input.maxLength=10;
+        input.maxLength=20;
         input.placeholder='Player 2 (required)';
         input.required=true;
         container.appendChild(input);
@@ -161,12 +170,17 @@
       const input=document.createElement('input');
       input.type='text';
       input.name='playerName';
-      input.maxLength=10;
+      input.maxLength=20;
       input.placeholder = count===2 ? 'Player 2 (required)' : `Player ${count} (optional)`;
       input.required = count===2;
       container.appendChild(input);
     }
   </script>
+</body>
+</html>
+<!-- partial -->
+  <script  src="./script.js"></script>
+
 </body>
 </html>
 <!-- partial -->
