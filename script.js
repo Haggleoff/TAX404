@@ -125,7 +125,7 @@ function showPlayerCards(){
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
-          <div class="player-card-debts">
+            <div class="player-card-debts">
             <span>Debt Owed: <span style="color:#dc143c;font-weight:bold;">${owe}</span></span>
             <span>Collect Debt: <span style="color:#19a43c;font-weight:bold;">${collect}</span></span>
           </div>
@@ -908,7 +908,16 @@ window.addEventListener('resize', debounce(()=>{
 function showEndgame(){
   const debtData = collectOutstandingDebtors();
   if(debtData.debtors.length===0){
-    loadEndgame();
+    // New confirmation popup when there are no outstanding debts
+    customPopup(
+      "Did the bank run out of money? Proceed to file taxes.",
+      (proceed)=>{
+        if(proceed) loadEndgame();
+      },
+      false,
+      "Yes",
+      "No"
+    );
   } else {
     showOutstandingDebtsPopup(debtData);
   }
@@ -948,7 +957,7 @@ function showOutstandingDebtsPopup(data){
 
   const instruction = `
     <p style="font-size:1rem; line-height:1.35; margin:0 0 0.8rem;">
-      Select each box to confirm outstanding debt has been settled.
+      Did the bank run out of money? Before filing taxes, check each box to confirm that all outstanding debts have been settled.
     </p>
   `;
 
