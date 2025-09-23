@@ -740,17 +740,108 @@ input:focus, select:focus {
   background:#2c2c2c; border:2px solid #3a3a3a;
   border-radius:12px; padding:0.55rem 0.65rem 0.7rem;
   margin-bottom:0.7rem; position:relative;
+  cursor:pointer;
+  transition:background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.debtor-block.selected {
+  background:#3a3226;
+  border-color:var(--color-accent);
+  box-shadow:0 0 0 2px #d4af7f55, 0 4px 14px #0008;
 }
 .debtor-header {
   display:flex; align-items:center; gap:0.55rem;
   font-family:var(--font-display); font-size:1rem;
   color:var(--color-accent); margin-bottom:0.3rem;
 }
-.debtor-header input { transform:scale(1.2); cursor:pointer; }
 .debtor-debts { font-size:1rem; letter-spacing:.4px; line-height:1.35; padding-left:0.2rem; }
-.debtor-debts span.cat { color:var(--color-danger); }
 .debtor-debts span.to { color:var(--color-success); }
+.debtor-select-hint {
+  font-size:0.8rem;
+  font-family:var(--font-display);
+  color:#888;
+  letter-spacing:.4px;
+  margin-top:0.35rem;
+  text-align:right;
+  user-select:none;
+}
 #outstandingProceedBtn[disabled] { opacity:0.4; cursor:not-allowed; filter:grayscale(0.4); }
+
+/* Tax Breaks Animated Badge (SMALL + FULL TEXT) */
+.tax-breaks-badge {
+  position:absolute;
+  top:8px;
+  left:10px;
+  width:60px;
+  height:60px;
+  pointer-events:none;
+  z-index:12;
+  filter:drop-shadow(0 2px 5px #0008);
+}
+.tax-breaks-badge .tb-svg {
+  width:100%;
+  height:100%;
+  animation:tbRotate 14s linear infinite;
+  overflow:visible;
+}
+.tax-breaks-badge .tb-text {
+  font-family:var(--font-display);
+  font-size:11px;            /* readable yet fits path */
+  letter-spacing:1.2px;
+  fill:var(--color-accent);
+  text-transform:uppercase;
+}
+.tax-breaks-badge .tb-value {
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-family:var(--font-display);
+  font-size:1.45rem;
+  color:var(--color-accent);
+  text-shadow:0 0 6px #000a;
+  line-height:1;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:radial-gradient(circle at 35% 30%, #54442f 0%, #362b21 65%, #251f18 100%);
+  box-shadow:inset 0 0 0 2px #d4af7f33, 0 0 0 2px #1a1a1a, 0 3px 10px #0009;
+}
+.tax-breaks-badge.earned .tb-value {
+  animation:tbValuePop 0.65s ease;
+}
+.tax-breaks-badge.earned .tb-svg {
+  animation:tbRotate 14s linear infinite, tbRingFlash 0.65s ease;
+}
+@keyframes tbRotate {
+  from { transform:rotate(0deg); }
+  to { transform:rotate(360deg); }
+}
+@keyframes tbValuePop {
+  0% { transform:translate(-50%,-50%) scale(0.9); box-shadow:inset 0 0 0 2px #d4af7f33, 0 0 0 2px #1a1a1a, 0 3px 10px #0009; }
+  40% { transform:translate(-50%,-50%) scale(1.15); box-shadow:0 0 12px 5px #d4af7f55, 0 0 0 2px #1a1a1a, 0 3px 10px #0009; }
+  70% { transform:translate(-50%,-50%) scale(1.0); }
+  100% { transform:translate(-50%,-50%) scale(1.0); }
+}
+@keyframes tbRingFlash {
+  0% { filter:drop-shadow(0 2px 5px #d4af7f00); }
+  35% { filter:drop-shadow(0 2px 8px #d4af7f90); }
+  100% { filter:drop-shadow(0 2px 5px #d4af7f00); }
+}
+@media (max-width:560px) {
+  .tax-breaks-badge {
+    width:56px;
+    height:56px;
+  }
+  .tax-breaks-badge .tb-value {
+    font-size:1.35rem;
+    width:40px;
+    height:40px;
+  }
+  .tax-breaks-badge .tb-text { font-size:10px; letter-spacing:1px; }
+}
 
 /* Footer */
 #siteFooter {
@@ -837,6 +928,7 @@ input:focus, select:focus {
 @media (prefers-reduced-motion:reduce) {
   .flicker-start { animation:none; }
   * { transition:none !important; scroll-behavior:auto !important; }
+  .tax-breaks-badge .tb-svg { animation:none !important; }
 }
 
 /* Donation labels */

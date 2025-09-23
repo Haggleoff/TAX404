@@ -1,16 +1,10 @@
 /************************************************************
  * TAX404
- * (See header notes for features)
- * - Debt sheet full pair summary moved to bottom above buttons
- * - Added in-sheet navigation (arrows + swipe + keyboard)
- * - Timer now also appears & functions inside Outstanding Debts sheet
- * - Replaced active card "Log" button with subtle "Select" hint;
- *   clicking the active player card now opens the donation calculator.
- * - Donation advance scroll refined:
- *   When leaving a player's turn (Confirm / No Donations / Took from Charity),
- *   the player cards now animate smoothly from the previous active player
- *   to the next player, without the old jarring jump or starting-from-left snap.
- * - Updated player name maximum length to 20 characters.
+ * Notes (recent updates relevant to badge issue):
+ * - Tax Breaks badge resized to match timer area
+ * - Circular text now uses textLength to prevent truncation
+ * - Badge ring no longer re-renders on each adjustment (avoids rotation reset)
+ * - Full phrase: "TAX BREAKS EARNED TAX BREAKS EARNED" (period removed)
  ************************************************************/
 
 let players = [];
@@ -38,11 +32,7 @@ const debtCategoryGroups = {
 let debts = [];
 
 let normalDonated=0, powerDonated=0, tempProgress=0;
-
-/* Scroll selection suppression flag */
 let suppressScrollSelect = false;
-
-/* Pending animated advance info (from previous player to new active) */
 let pendingAdvance = null;
 
 /* Utility helpers */
@@ -131,7 +121,7 @@ function showPlayerCards(){
             ${i===currentPlayerIndex? timeLeft : ''}
           </div>
           <div class="player-card-progress">${renderCardProgress(p.progress)}</div>
-            <div class="player-card-breaks">
+          <div class="player-card-breaks">
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
@@ -151,9 +141,7 @@ function showPlayerCards(){
       <button id="endgameTaxesBtn" class="styled-btn" onclick="showEndgame()">Endgame Taxes</button>
     </div>`;
 
-  // Set edge padding before scroll calculations
   setPlayerRowEdgePadding();
-
   const row = document.getElementById('playerCardsRow');
 
   if(pendingAdvance && row){
@@ -189,7 +177,6 @@ function showPlayerCards(){
   timeLeft=60; timerRunningState=true;
   startTimer();
   updateTimerDisplays();
-
   pendingAdvance = null;
 }
 
@@ -363,13 +350,12 @@ function attachDebtSheetEvents(otherIdx){
     });
   });
 
-  // Nav buttons
   const prevBtn=document.getElementById('debtPairPrevBtn');
   const nextBtn=document.getElementById('debtPairNextBtn');
   if(prevBtn) prevBtn.onclick=()=>navigateDebtPlayer(-1);
   if(nextBtn) nextBtn.onclick=()=>navigateDebtPlayer(1);
 
-  // Swipe (touch + pointer/mouse)
+  // Swipe navigation
   let startX=0, startY=0, active=false;
   const start = (x,y)=>{ startX=x; startY=y; active=true; };
   const end = (x,y)=>{
@@ -386,24 +372,19 @@ function attachDebtSheetEvents(otherIdx){
   sheet.addEventListener('pointerdown',e=>{ if(e.isPrimary) start(e.clientX,e.clientY); });
   sheet.addEventListener('pointerup',e=>{ if(e.isPrimary) end(e.clientX,e.clientY); });
 
-  // Keyboard navigation
   window.addEventListener('keydown', debtSheetKeyHandler);
 
   document.getElementById('debtSheetOverlay').addEventListener('click', e=>{
     if(e.target.id==='debtSheetOverlay') closeDebtSheet();
   }, { once:true });
 
-  // Timer interactions
   bindTimerClick();
 }
-
 function debtSheetKeyHandler(e){
   if(!document.getElementById('debtSheetOverlay')?.style.display || document.getElementById('debtSheetOverlay').style.display==='none') return;
   if(e.key==='ArrowLeft') { navigateDebtPlayer(-1); }
   else if(e.key==='ArrowRight') { navigateDebtPlayer(1); }
 }
-
-/* Navigate between other players within open sheet */
 function navigateDebtPlayer(offset){
   if(players.length<=2) return;
   if(openDebtPlayerIndex==null) return;
@@ -421,7 +402,6 @@ function navigateDebtPlayer(offset){
     updateTimerDisplays();
   }
 }
-
 function openClearDebtsOptions(a,b){
   ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
@@ -535,8 +515,30 @@ function refreshOverviewOnly(){
 
 /* Donations */
 function donateAction(i){ if(i===currentPlayerIndex) loadCalculator(); }
+
 function loadCalculator(){
-  function updateDisplay(){
+  let calculatorInitialized = false;
+  let previousBreaksPreview = null;
+
+  function buildTaxBreaksBadge(breaksPreview){
+    /* Path radius 40 => circumference ~251 — we set textLength to 251 so full phrase fits */
+    return `
+      <div class="tax-breaks-badge" id="taxBreaksBadge" aria-label="Tax Breaks Earned">
+        <svg viewBox="0 0 100 100" class="tb-svg" role="img" focusable="false">
+          <defs>
+            <path id="tbCirclePath" d="M50,10 a40,40 0 1,1 -0.01,0" />
+          </defs>
+          <text class="tb-text">
+            <textPath href="#tbCirclePath" startOffset="50%" textLength="251" lengthAdjust="spacingAndGlyphs">
+              TAX BREAKS EARNED TAX BREAKS EARNED
+            </textPath>
+          </text>
+        </svg>
+        <div class="tb-value" id="taxBreaksValue">${breaksPreview}</div>
+      </div>`;
+  }
+
+  function computeDonationVisuals(){
     const p=players[currentPlayerIndex];
     const prev=tempProgress;
     const donated=normalDonated;
@@ -559,9 +561,15 @@ function loadCalculator(){
     }
     const streaksThisTurn=Math.floor(total/5);
     const breaksPreview=p.streaks + p.powerCards + powerDonated + streaksThisTurn;
+    return { blocks, breaksPreview, streaksThisTurn };
+  }
 
+  function initialRender(){
+    const { blocks, breaksPreview } = computeDonationVisuals();
+    const p=players[currentPlayerIndex];
     const debtOverview=buildDebtOverview();
     const timerHtml=`<div id="calculatorTimerWrapper"><span id="calculatorTimerDisplay" class="player-card-timer">${timeLeft}</span></div>`;
+    const badgeHtml = buildTaxBreaksBadge(breaksPreview);
 
     let confirmBtns;
     if(normalDonated===0 && powerDonated===0){
@@ -574,14 +582,15 @@ function loadCalculator(){
     }
 
     document.getElementById('mainGameContainer').innerHTML=`
-      <div class="calculatorBox">
+      <div class="calculatorBox" id="donationCalculatorBox">
+        ${badgeHtml}
         ${timerHtml}
-        <h2 class="player-name" style="margin-top:0.2rem;">${p.name}'s Turn</h2>
+        <h2 class="player-name" style="margin-top:1.05rem;">${p.name}'s Turn</h2>
 
         <span class="donate-label">Normal Cards Donated</span>
         <div class="donate-row">
           <button id="minusNormal" class="btn-round alt">-</button>
-          <div class="normal-cards-container">
+          <div class="normal-cards-container" id="normalCardsContainer">
             ${blocks}
           </div>
           <button id="plusNormal" class="btn-round">+</button>
@@ -593,52 +602,113 @@ function loadCalculator(){
         <div class="donate-row">
           <button id="minusPower" class="btn-round alt">-</button>
           <div class="power-circle-container">
-            <div class="power-circle${powerDonated===0?' zero':''}">${powerDonated}</div>
+            <div class="power-circle${powerDonated===0?' zero':''}" id="powerCircle">${powerDonated}</div>
           </div>
-            <button id="plusPower" class="btn-round">+</button>
-        </div>
-
-        <div class="player-card-breaks" style="margin:0.55rem 0 0.6rem;">
-          <span>Tax Breaks Earned</span>
-          <span class="breaks-badge" id="taxBreaksPreview">${breaksPreview}</span>
+          <button id="plusPower" class="btn-round">+</button>
         </div>
 
         ${debtOverview}
 
-        <div class="donation-actions">
+        <div class="donation-actions" id="donationActionButtons">
           ${confirmBtns}
         </div>
       </div>`;
 
-    const minusN=document.getElementById('minusNormal');
-    const plusN=document.getElementById('plusNormal');
-    const minusP=document.getElementById('minusPower');
-    const plusP=document.getElementById('plusPower');
-
-    minusN.disabled = normalDonated===0;
-    plusN.disabled = (normalDonated+tempProgress)>=20;
-    minusP.disabled = powerDonated===0;
-    plusP.disabled = powerDonated>=20;
-
-    plusN.onclick=()=>{ if(normalDonated+tempProgress<20){ normalDonated++; updateDisplay(); } };
-    minusN.onclick=()=>{ if(normalDonated>0){ normalDonated--; updateDisplay(); } };
-    plusP.onclick=()=>{ if(powerDonated<20){ powerDonated++; updateDisplay(); } };
-    minusP.onclick=()=>{ if(powerDonated>0){ powerDonated--; updateDisplay(); } };
-
-    const confirm=document.getElementById('confirmDonationBtn');
-    confirm.onclick=()=>{
-      if(normalDonated===0 && powerDonated===0) nextPlayer();
-      else finalizeDonations(normalDonated,powerDonated);
-    };
-    const charity=document.getElementById('tookCharityBtn');
-    if(charity) charity.onclick=()=>tookCharityAction(currentPlayerIndex);
-
+    calculatorInitialized = true;
+    previousBreaksPreview = breaksPreview;
+    bindDonationControls();
     attachMiniDebtHandlers();
     updateTimerDisplays();
     bindTimerClick();
   }
-  updateDisplay();
+
+  function bindDonationControls(){
+    const minusN=document.getElementById('minusNormal');
+    const plusN=document.getElementById('plusNormal');
+    const minusP=document.getElementById('minusPower');
+    const plusP=document.getElementById('plusPower');
+    const confirm=document.getElementById('confirmDonationBtn');
+    const charity=document.getElementById('tookCharityBtn');
+
+    if(minusN) minusN.onclick=()=>{ if(normalDonated>0){ normalDonated--; updateDynamic(); } };
+    if(plusN) plusN.onclick=()=>{ if(normalDonated+tempProgress<20){ normalDonated++; updateDynamic(); } };
+    if(minusP) minusP.onclick=()=>{ if(powerDonated>0){ powerDonated--; updateDynamic(); } };
+    if(plusP) plusP.onclick=()=>{ if(powerDonated<20){ powerDonated++; updateDynamic(); } };
+
+    if(confirm) confirm.onclick=()=>{
+      if(normalDonated===0 && powerDonated===0) nextPlayer();
+      else finalizeDonations(normalDonated,powerDonated);
+    };
+    if(charity) charity.onclick=()=>tookCharityAction(currentPlayerIndex);
+  }
+
+  function updateButtonsState(){
+    const minusN=document.getElementById('minusNormal');
+    const plusN=document.getElementById('plusNormal');
+    const minusP=document.getElementById('minusPower');
+    const plusP=document.getElementById('plusPower');
+    if(minusN) minusN.disabled = normalDonated===0;
+    if(plusN) plusN.disabled = (normalDonated+tempProgress)>=20;
+    if(minusP) minusP.disabled = powerDonated===0;
+    if(plusP) plusP.disabled = powerDonated>=20;
+
+    const actionBox=document.getElementById('donationActionButtons');
+    if(actionBox){
+      const existingConfirm=document.getElementById('confirmDonationBtn');
+      const existingCharity=document.getElementById('tookCharityBtn');
+      if(normalDonated===0 && powerDonated===0){
+        if(!existingCharity){
+          actionBox.innerHTML=`
+            <button id="confirmDonationBtn" class="donation-btn" data-variant="primary">No Donations</button>
+            <button id="tookCharityBtn" class="donation-btn" data-variant="secondary">Took from Charity</button>`;
+          bindDonationControls();
+        }
+      } else {
+        if(!existingConfirm || existingCharity){
+          actionBox.innerHTML=`<button id="confirmDonationBtn" class="donation-btn" data-variant="primary">Confirm</button>`;
+          bindDonationControls();
+        }
+      }
+    }
+  }
+
+  function updateDynamic(){
+    if(!calculatorInitialized){
+      initialRender();
+      return;
+    }
+    const { blocks, breaksPreview } = computeDonationVisuals();
+
+    const blocksContainer=document.getElementById('normalCardsContainer');
+    if(blocksContainer) blocksContainer.innerHTML=blocks;
+
+    const powerCircle=document.getElementById('powerCircle');
+    if(powerCircle){
+      powerCircle.textContent=powerDonated;
+      powerCircle.classList.toggle('zero', powerDonated===0);
+    }
+
+    const badgeValue=document.getElementById('taxBreaksValue');
+    const badge=document.getElementById('taxBreaksBadge');
+    if(badgeValue){
+      const currentVal=parseInt(badgeValue.textContent||'0',10);
+      if(breaksPreview>currentVal && badge){
+        badge.classList.remove('earned');
+        void badge.offsetWidth;
+        badge.classList.add('earned');
+        setTimeout(()=>badge && badge.classList.remove('earned'), 900);
+      }
+      badgeValue.textContent=breaksPreview;
+    }
+
+    previousBreaksPreview = breaksPreview;
+    updateButtonsState();
+  }
+
+  initialRender();
+  updateButtonsState();
 }
+
 function finalizeDonations(n,pw){
   const p=players[currentPlayerIndex];
   const total=p.progress + n;
@@ -744,7 +814,7 @@ function setupPlayerCardClicks(){
             }
           }
         });
-        scrollToActiveCard(true); // instantaneous when clicking manually
+        scrollToActiveCard(true);
         startTimer();
         updateTimerDisplays();
         bindTimerClick();
@@ -869,60 +939,80 @@ function collectOutstandingDebtors(){
   }
   return { debtors:[...debtorsMap.values()] };
 }
+
+/* Outstanding Debts Popup (selectable) */
 function showOutstandingDebtsPopup(data){
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const btnBox=document.getElementById('customPopupButtons');
+
+  const instruction = `
+    <p style="font-size:1rem; line-height:1.35; margin:0 0 0.8rem;">
+      Select each box to confirm outstanding debt has been settled.
+    </p>
+  `;
+
+  const blocks = data.debtors.map(d=>{
+    const debtorName = players[d.debtorIndex].name;
+    const lines = d.details.map(det=>{
+      const payeeName = players[det.payeeIndex].name;
+      return `<div style="margin-bottom:0.35rem;">→ Owes <span class="to">${payeeName}</span>: ${det.total}</div>`;
+    }).join('');
+    return `
+      <div class="debtor-block" data-debtor="${d.debtorIndex}" tabindex="0" role="button" aria-pressed="false">
+        <div class="debtor-header">
+          <span>${debtorName} (Total Owed: ${d.totalOwed})</span>
+        </div>
+        <div class="debtor-debts">
+          ${lines}
+        </div>
+        <div class="debtor-select-hint">Tap to select</div>
+      </div>
+    `;
+  }).join('');
+
   const content = `
     <h2 class="lilita" style="color:var(--color-accent); margin:0 0 0.6rem;">Outstanding Debts</h2>
-    <p style="font-size:1rem; line-height:1.35; margin:0 0 0.8rem;">
-      There are outstanding debts that need to be settled before filing taxes:
-    </p>
+    ${instruction}
     <div class="outstanding-wrapper">
-      ${data.debtors.map(d=>{
-        const debtorName=players[d.debtorIndex].name;
-        return `
-          <div class="debtor-block" data-debtor="${d.debtorIndex}">
-            <label class="debtor-header">
-              <input type="checkbox" data-debtor-check="${d.debtorIndex}">
-              <span>${debtorName} (Total Owed: ${d.totalOwed})</span>
-            </label>
-            <div class="debtor-debts">
-              ${d.details.map(det=>{
-                const payeeName=players[det.payeeIndex].name;
-                return `
-                  <div style="margin-bottom:0.35rem;">
-                    <strong>→ Owes <span class="to">${payeeName}</span> : ${det.total}</strong><br>
-                    ${det.categories.map(c=>`<span class="cat">${c.cat}</span>: ${c.amt}`).join(', ')}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      }).join('')}
+      ${blocks}
     </div>
   `;
   msg.innerHTML = content;
+
   btnBox.innerHTML = `
     <button id="outstandingProceedBtn" class="styled-btn" disabled>Proceed to Filing</button>
     <button id="outstandingCancelBtn" class="btn-neutral styled-btn">Cancel</button>
   `;
+
   overlay.style.display='flex';
+
   const proceed=document.getElementById('outstandingProceedBtn');
   const cancel=document.getElementById('outstandingCancelBtn');
-  const checkboxes=[...msg.querySelectorAll('[data-debtor-check]')];
+  const debtorBlocks=[...msg.querySelectorAll('.debtor-block')];
+
   function updateProceed(){
-    const allChecked = checkboxes.every(cb=>cb.checked);
-    proceed.disabled = !allChecked;
+    const allSelected = debtorBlocks.every(el=>el.classList.contains('selected'));
+    proceed.disabled = !allSelected;
   }
-  checkboxes.forEach(cb=>cb.addEventListener('change', updateProceed));
+  function toggleSelection(el){
+    el.classList.toggle('selected');
+    const pressed = el.classList.contains('selected');
+    el.setAttribute('aria-pressed', pressed?'true':'false');
+    updateProceed();
+  }
+  debtorBlocks.forEach(el=>{
+    el.addEventListener('click', ()=>toggleSelection(el));
+    el.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' ') { e.preventDefault(); toggleSelection(el); }
+    });
+  });
   updateProceed();
   proceed.onclick=()=>{ overlay.style.display='none'; loadEndgame(); };
   cancel.onclick=()=>{ overlay.style.display='none'; };
 }
 
-/* Endgame & Taxes (unchanged logic) */
+/* Endgame & Taxes */
 function loadEndgame(){
   if(timerInterval) clearInterval(timerInterval);
   timerRunningState=false;
