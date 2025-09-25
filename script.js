@@ -1,10 +1,15 @@
 /************************************************************
  * TAX404
- * Notes (recent updates relevant to badge issue):
- * - Tax Breaks badge resized to match timer area
- * - Circular text now uses textLength to prevent truncation
- * - Badge ring no longer re-renders on each adjustment (avoids rotation reset)
- * - Full phrase: "TAX BREAKS EARNED TAX BREAKS EARNED" (period removed)
+ * Full Script
+ * Features:
+ *  - Player management & turn timer
+ *  - Donation calculator (normal & power cards)
+ *  - Tax breaks badge (enlarged ring, no clipping)
+ *  - Debt tracking with per-category bilateral normalization
+ *  - Bottom sheet debt editor with colored status + amount pills
+ *  - Outstanding debts confirmation flow
+ *  - Endgame tax calculation & breakdown
+ *  - Exit & replay handling
  ************************************************************/
 
 let players = [];
@@ -35,7 +40,7 @@ let normalDonated=0, powerDonated=0, tempProgress=0;
 let suppressScrollSelect = false;
 let pendingAdvance = null;
 
-/* Utility helpers */
+/* ---------- Utility ---------- */
 function getImageName(name){
   return `Characters/${name.toLowerCase().replace(/&/g,"-").replace(/ /g,"-")}.png`;
 }
@@ -58,13 +63,9 @@ function normalizeCategory(a,b,cat){
   const you=debts[a][b][cat]||0;
   const they=debts[b][a][cat]||0;
   if(you>0 && they>0){
-    if(you===they){
-      debts[a][b][cat]=0; debts[b][a][cat]=0;
-    } else if(you>they){
-      debts[a][b][cat]=you-they; debts[b][a][cat]=0;
-    } else {
-      debts[b][a][cat]=they-you; debts[a][b][cat]=0;
-    }
+    if(you===they){ debts[a][b][cat]=0; debts[b][a][cat]=0; }
+    else if(you>they){ debts[a][b][cat]=you-they; debts[b][a][cat]=0; }
+    else { debts[b][a][cat]=they-you; debts[a][b][cat]=0; }
   }
 }
 function normalizePair(a,b){ debtCategories.forEach(cat=>normalizeCategory(a,b,cat)); }
@@ -73,9 +74,11 @@ function categoryPlus(a,b,cat){
   let you=debts[a][b][cat]||0;
   let they=debts[b][a][cat]||0;
   if(you>0){
-    you--; if(you===0) clearCat(a,b,cat); else { debts[a][b][cat]=you; debts[b][a][cat]=0; }
+    you--;
+    if(you===0) clearCat(a,b,cat); else { debts[a][b][cat]=you; debts[b][a][cat]=0; }
   } else {
-    they++; debts[b][a][cat]=they; debts[a][b][cat]=0;
+    they++;
+    debts[b][a][cat]=they; debts[a][b][cat]=0;
   }
   normalizeCategory(a,b,cat);
 }
@@ -83,9 +86,11 @@ function categoryMinus(a,b,cat){
   let you=debts[a][b][cat]||0;
   let they=debts[b][a][cat]||0;
   if(they>0){
-    they--; if(they===0) clearCat(a,b,cat); else { debts[b][a][cat]=they; debts[a][b][cat]=0; }
+    they--;
+    if(they===0) clearCat(a,b,cat); else { debts[b][a][cat]=they; debts[a][b][cat]=0; }
   } else {
-    you++; debts[a][b][cat]=you; debts[b][a][cat]=0;
+    you++;
+    debts[a][b][cat]=you; debts[b][a][cat]=0;
   }
   normalizeCategory(a,b,cat);
 }
@@ -96,7 +101,7 @@ function clearAllDebtsBetween(a,b){
   });
 }
 
-/* Player Cards */
+/* ---------- Player Cards ---------- */
 function resetDonationState(){
   normalDonated=0; powerDonated=0;
   tempProgress = players[currentPlayerIndex]? players[currentPlayerIndex].progress:0;
@@ -106,7 +111,6 @@ function renderCardProgress(p){
     p>0? Array(p).fill('<div class="donate-block"></div>').join(''):''
   }</div>`;
 }
-
 function showPlayerCards(){
   resetDonationState();
   let html='';
@@ -120,12 +124,12 @@ function showPlayerCards(){
           <div class="player-card-timer" id="playerTimer" ${i===currentPlayerIndex?'style="cursor:pointer;"':''}>
             ${i===currentPlayerIndex? timeLeft : ''}
           </div>
-          <div class="player-card-progress">${renderCardProgress(p.progress)}</div>
+            <div class="player-card-progress">${renderCardProgress(p.progress)}</div>
           <div class="player-card-breaks">
             <span>Tax Breaks Earned</span>
             <span class="breaks-badge player-card-breaks-num">${p.streaks + p.powerCards}</span>
           </div>
-            <div class="player-card-debts">
+          <div class="player-card-debts">
             <span>Debt Owed: <span style="color:#dc143c;font-weight:bold;">${owe}</span></span>
             <span>Collect Debt: <span style="color:#19a43c;font-weight:bold;">${collect}</span></span>
           </div>
@@ -143,7 +147,6 @@ function showPlayerCards(){
 
   setPlayerRowEdgePadding();
   const row = document.getElementById('playerCardsRow');
-
   if(pendingAdvance && row){
     const fromIdx = pendingAdvance.from;
     const toIdx = pendingAdvance.to;
@@ -180,41 +183,41 @@ function showPlayerCards(){
   pendingAdvance = null;
 }
 
-/* Debt Overview */
-function buildDebtOverview(){
-  if(players.length<2) return "";
-  const { owe, collect } = aggregateTotals(currentPlayerIndex);
-  let minis='';
+/* ---------- Debt Summary in Calculator ---------- */
+function getPrimaryDebtPartner(){
+  if(players.length<2) return null;
+  const a=currentPlayerIndex;
+  let bestIdx=null;
+  let bestTotal=-1;
   for(let i=0;i<players.length;i++){
-    if(i===currentPlayerIndex) continue;
-    minis+=`
-      <div class="debt-mini-player" data-player="${i}">
-        <div class="dmp-name">${players[i].name}</div>
-        <div class="dmp-line">
-          <span class="dmp-owe-val">Owe:${sumYouOwe(currentPlayerIndex,i)}</span>
-          <span class="dmp-collect-val">Collect:${sumTheyOwe(currentPlayerIndex,i)}</span>
-        </div>
-        <div class="dmp-hint">Tap to adjust</div>
-      </div>`;
+    if(i===a) continue;
+    const total = sumYouOwe(a,i) + sumTheyOwe(a,i);
+    if(total>bestTotal){ bestTotal=total; bestIdx=i; }
   }
+  if(bestIdx===null) bestIdx = (a===0?1:0);
+  return bestIdx;
+}
+function buildDebtSummaryBar(){
+  const { owe, collect } = aggregateTotals(currentPlayerIndex);
   return `
-    <div class="debt-summary-bar">
+    <div class="debt-summary-bar" id="debtSummaryBar" role="button" tabindex="0" aria-label="View and adjust detailed debts">
       <span class="ds-owe">You Owe: ${owe}</span>
       <span class="ds-collect">You Collect: ${collect}</span>
-    </div>
-    <div class="debt-other-players-row" id="debtOtherPlayersRow">${minis}</div>`;
+    </div>`;
 }
+function refreshOverviewOnly(){
+  const bar=document.getElementById('debtSummaryBar');
+  if(!bar) return;
+  const { owe, collect } = aggregateTotals(currentPlayerIndex);
+  const oweSpan=bar.querySelector('.ds-owe');
+  const collectSpan=bar.querySelector('.ds-collect');
+  if(oweSpan) oweSpan.textContent=`You Owe: ${owe}`;
+  if(collectSpan) collectSpan.textContent=`You Collect: ${collect}`;
+}
+
+/* ---------- Debt Sheet ---------- */
 let openDebtPlayerIndex=null;
-function attachMiniDebtHandlers(){
-  const row=document.getElementById('debtOtherPlayersRow');
-  if(!row) return;
-  row.querySelectorAll('.debt-mini-player').forEach(el=>{
-    el.addEventListener('click',()=>{
-      const idx=parseInt(el.getAttribute('data-player'));
-      openDebtSheet(idx);
-    });
-  });
-}
+
 function openDebtSheet(otherIdx){
   normalizePair(currentPlayerIndex,otherIdx);
   openDebtPlayerIndex=otherIdx;
@@ -225,7 +228,6 @@ function openDebtSheet(otherIdx){
   document.body.classList.add('modal-open');
   requestAnimationFrame(()=>sheet.classList.add('open'));
   attachDebtSheetEvents(otherIdx);
-  highlightMini(otherIdx);
   updateTimerDisplays();
   bindTimerClick();
 }
@@ -237,11 +239,6 @@ function closeDebtSheet(){
   setTimeout(()=>{ overlay.style.display='none'; sheet.innerHTML=''; },380);
   openDebtPlayerIndex=null;
   refreshOverviewOnly();
-}
-function highlightMini(idx){
-  document.querySelectorAll('.debt-mini-player').forEach(el=>{
-    el.classList.toggle('active', parseInt(el.getAttribute('data-player'))===idx);
-  });
 }
 function renderDebtSheet(otherIdx){
   const a=currentPlayerIndex, b=otherIdx;
@@ -255,21 +252,19 @@ function renderDebtSheet(otherIdx){
       normalizeCategory(a,b,cat);
       const you=debts[a][b][cat]||0;
       const they=debts[b][a][cat]||0;
-      const dirLabel = you>0
-        ? '<span style="color:#dc143c;">Owe</span>'
-        : they>0
-          ? '<span style="color:#19a43c;">Collect</span>'
-          : '<span style="color:#777;">None</span>';
+      const status = you>0 ? 'owe' : they>0 ? 'collect' : 'none';
+      const amount = you>0? you : they>0? they : 0;
+      const label = status==='owe' ? 'Owe' : status==='collect' ? 'Collect' : 'None';
       rows+=`
         <div class="debt-category-row" data-cat="${cat}">
           <img class="debt-cat-icon" src="${getImageName(cat)}" alt="${cat}">
-            <div class="debt-cat-info">
-              <div class="debt-cat-name">${cat}</div>
-              <div class="debt-cat-stats">
-                <span data-dir="${cat}" class="pill pill-status">${dirLabel}</span>
-                <span data-amt="${cat}" class="pill pill-amt">${you>0? you : they>0? they : 0}</span>
-              </div>
+          <div class="debt-cat-info">
+            <div class="debt-cat-name">${cat}</div>
+            <div class="debt-cat-stats">
+              <span data-dir="${cat}" class="pill pill-status ${status}">${label}</span>
+              <span data-amt="${cat}" class="pill pill-amt ${status}">${amount}</span>
             </div>
+          </div>
           <div class="debt-cat-adjust">
             <button class="debt-adjust-small-btn minus" data-action="minus" data-cat="${cat}">&minus;</button>
             <button class="debt-adjust-small-btn" data-action="plus" data-cat="${cat}">&plus;</button>
@@ -297,7 +292,7 @@ function renderDebtSheet(otherIdx){
       <h3 class="debt-sheet-title lilita" style="font-size:1.1rem;color:#d9d9d9;">Outstanding Debts</h3>
     </div>
     <div class="debt-cat-groups">${groups}</div>
-    <div class="debt-pair-bottom-summary" id="debtPairSummaryBottom">
+    <div class="debt-pair-bottom-summary">
       <div class="debt-pair-nav">
         <button class="debt-pair-nav-btn" id="debtPairPrevBtn" ${navNeeded?'':'disabled'} aria-label="Previous Player">&#8249;</button>
         <div class="debt-pair-title" data-pair-title>
@@ -320,9 +315,8 @@ function attachDebtSheetEvents(otherIdx){
   const sheet=document.getElementById('debtSheet');
   if(!sheet) return;
   sheet.querySelector('#closeSheetBtn').onclick=closeDebtSheet;
-  sheet.querySelector('#clearAllPairBtn').onclick=()=>{
-    openClearDebtsOptions(a,otherIdx);
-  };
+  sheet.querySelector('#clearAllPairBtn').onclick=()=>openClearDebtsOptions(a,otherIdx);
+
   sheet.querySelectorAll('.debt-group-toggle').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const g=btn.getAttribute('data-group');
@@ -338,6 +332,7 @@ function attachDebtSheetEvents(otherIdx){
       }
     });
   });
+
   sheet.querySelectorAll('.debt-adjust-small-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const cat=btn.getAttribute('data-cat');
@@ -363,8 +358,7 @@ function attachDebtSheetEvents(otherIdx){
     const dx=x-startX, dy=y-startY;
     active=false;
     if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)){
-      if(dx<0) navigateDebtPlayer(1);
-      else navigateDebtPlayer(-1);
+      if(dx<0) navigateDebtPlayer(1); else navigateDebtPlayer(-1);
     }
   };
   sheet.addEventListener('touchstart',e=>{ if(e.touches.length===1) start(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
@@ -381,9 +375,9 @@ function attachDebtSheetEvents(otherIdx){
   bindTimerClick();
 }
 function debtSheetKeyHandler(e){
-  if(!document.getElementById('debtSheetOverlay')?.style.display || document.getElementById('debtSheetOverlay').style.display==='none') return;
-  if(e.key==='ArrowLeft') { navigateDebtPlayer(-1); }
-  else if(e.key==='ArrowRight') { navigateDebtPlayer(1); }
+  if(document.getElementById('debtSheetOverlay')?.style.display!=='flex') return;
+  if(e.key==='ArrowLeft') navigateDebtPlayer(-1);
+  else if(e.key==='ArrowRight') navigateDebtPlayer(1);
 }
 function navigateDebtPlayer(offset){
   if(players.length<=2) return;
@@ -398,10 +392,11 @@ function navigateDebtPlayer(offset){
   if(sheet){
     sheet.innerHTML = renderDebtSheet(newOther);
     attachDebtSheetEvents(newOther);
-    highlightMini(newOther);
     updateTimerDisplays();
   }
 }
+
+/* Clear debts options popup */
 function openClearDebtsOptions(a,b){
   ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
@@ -443,31 +438,34 @@ function openClearDebtsOptions(a,b){
   document.getElementById('cancelClearBtn').onclick=closePopup;
 }
 
+/* Row refresh */
 function refreshCategoryRow(cat){
   if(openDebtPlayerIndex==null) return;
   const a=currentPlayerIndex, b=openDebtPlayerIndex;
   normalizeCategory(a,b,cat);
   const you=debts[a][b][cat]||0;
   const they=debts[b][a][cat]||0;
+  const status = you>0 ? 'owe' : they>0 ? 'collect' : 'none';
+  const amount = you>0? you : they>0? they : 0;
+  const label = status==='owe' ? 'Owe' : status==='collect' ? 'Collect' : 'None';
+
   const dirSpan=document.querySelector(`[data-dir="${cat}"]`);
   const amtSpan=document.querySelector(`[data-amt="${cat}"]`);
   if(dirSpan){
-    let lab;
-    if(you>0) lab='<span style="color:#dc143c;">Owe</span>';
-    else if(they>0) lab='<span style="color:#19a43c;">Collect</span>';
-    else lab='<span style="color:#777;">None</span>';
-    dirSpan.innerHTML=lab;
-    dirSpan.classList.remove('value-pulse-red','value-pulse-green');
+    dirSpan.textContent=label;
+    dirSpan.classList.remove('owe','collect','none','value-pulse-red','value-pulse-green');
+    dirSpan.classList.add(status);
     void dirSpan.offsetWidth;
-    if(you>0) dirSpan.classList.add('value-pulse-red');
-    else if(they>0) dirSpan.classList.add('value-pulse-green');
+    if(status==='owe') dirSpan.classList.add('value-pulse-red');
+    else if(status==='collect') dirSpan.classList.add('value-pulse-green');
   }
   if(amtSpan){
-    amtSpan.textContent=`${you>0? you : they>0? they : 0}`;
-    amtSpan.classList.remove('value-pulse-red','value-pulse-green');
+    amtSpan.textContent=amount;
+    amtSpan.classList.remove('owe','collect','none','value-pulse-red','value-pulse-green');
+    amtSpan.classList.add(status);
     void amtSpan.offsetWidth;
-    if(you>0) amtSpan.classList.add('value-pulse-red');
-    else if(they>0) amtSpan.classList.add('value-pulse-green');
+    if(status==='owe') amtSpan.classList.add('value-pulse-red');
+    else if(status==='collect') amtSpan.classList.add('value-pulse-green');
   }
 }
 function refreshAllCategoryRows(){
@@ -486,44 +484,15 @@ function updatePairHeader(a,b){
     titleEl.innerHTML = `<span class="active-player">${players[a].name}</span> ↔ <span class="other-player">${players[b].name}</span>`;
   }
 }
-function refreshOverviewOnly(){
-  const container=document.getElementById('mainGameContainer');
-  if(!container)return;
-  const summary=container.querySelector('.debt-summary-bar');
-  const row=container.querySelector('#debtOtherPlayersRow');
-  if(!summary||!row) return;
-  const { owe, collect } = aggregateTotals(currentPlayerIndex);
-  summary.innerHTML=`
-    <span class="ds-owe">You Owe: ${owe}</span>
-    <span class="ds-collect">You Collect: ${collect}</span>`;
-  let minis='';
-  for(let i=0;i<players.length;i++){
-    if(i===currentPlayerIndex) continue;
-    minis+=`
-      <div class="debt-mini-player${openDebtPlayerIndex===i?' active':''}" data-player="${i}">
-        <div class="dmp-name">${players[i].name}</div>
-        <div class="dmp-line">
-          <span class="dmp-owe-val">Owe:${sumYouOwe(currentPlayerIndex,i)}</span>
-          <span class="dmp-collect-val">Collect:${sumTheyOwe(currentPlayerIndex,i)}</span>
-        </div>
-        <div class="dmp-hint">Tap to adjust</div>
-      </div>`;
-  }
-  row.innerHTML=minis;
-  attachMiniDebtHandlers();
-}
 
-/* Donations */
-function donateAction(i){ if(i===currentPlayerIndex) loadCalculator(); }
-
+/* ---------- Donations / Calculator (with enlarged badge) ---------- */
 function loadCalculator(){
   let calculatorInitialized = false;
   let previousBreaksPreview = null;
 
   function buildTaxBreaksBadge(breaksPreview){
-    /* Path radius 40 => circumference ~251 — we set textLength to 251 so full phrase fits */
     return `
-      <div class="tax-breaks-badge" id="taxBreaksBadge" aria-label="Tax Breaks Earned">
+      <div class="tax-breaks-badge inline" id="taxBreaksBadge" aria-label="Tax Breaks Earned">
         <svg viewBox="0 0 100 100" class="tb-svg" role="img" focusable="false">
           <defs>
             <path id="tbCirclePath" d="M50,10 a40,40 0 1,1 -0.01,0" />
@@ -561,53 +530,52 @@ function loadCalculator(){
     }
     const streaksThisTurn=Math.floor(total/5);
     const breaksPreview=p.streaks + p.powerCards + powerDonated + streaksThisTurn;
-    return { blocks, breaksPreview, streaksThisTurn };
+    return { blocks, breaksPreview };
   }
 
   function initialRender(){
     const { blocks, breaksPreview } = computeDonationVisuals();
     const p=players[currentPlayerIndex];
-    const debtOverview=buildDebtOverview();
-    const timerHtml=`<div id="calculatorTimerWrapper"><span id="calculatorTimerDisplay" class="player-card-timer">${timeLeft}</span></div>`;
+    const debtBar=buildDebtSummaryBar();
     const badgeHtml = buildTaxBreaksBadge(breaksPreview);
 
     let confirmBtns;
     if(normalDonated===0 && powerDonated===0){
       confirmBtns = `
         <button id="confirmDonationBtn" class="donation-btn" data-variant="primary">No Donations</button>
-        <button id="tookCharityBtn" class="donation-btn" data-variant="secondary">Took from Charity</button>
-      `;
+        <button id="tookCharityBtn" class="donation-btn" data-variant="secondary">Took from Charity</button>`;
     } else {
       confirmBtns = `<button id="confirmDonationBtn" class="donation-btn" data-variant="primary">Confirm</button>`;
     }
 
     document.getElementById('mainGameContainer').innerHTML=`
       <div class="calculatorBox" id="donationCalculatorBox">
-        ${badgeHtml}
-        ${timerHtml}
-        <h2 class="player-name" style="margin-top:1.05rem;">${p.name}'s Turn</h2>
-
-        <span class="donate-label">Normal Cards Donated</span>
-        <div class="donate-row">
-          <button id="minusNormal" class="btn-round alt">-</button>
-          <div class="normal-cards-container" id="normalCardsContainer">
-            ${blocks}
-          </div>
-          <button id="plusNormal" class="btn-round">+</button>
+        <div class="donation-header">
+          ${badgeHtml}
+          <h2 class="player-name donation-player-name">${p.name}</h2>
+          <span id="calculatorTimerDisplay" class="player-card-timer" aria-label="Turn Timer">${timeLeft}</span>
         </div>
 
-        <span class="streak-helper">Each streak (5 cards) = 1 Tax Break</span>
-
-        <span class="donate-label" style="margin-top:0.9rem;">Power Cards or Cash Donated</span>
+        <div class="donate-label-inline">
+          Normal Cards Donated
+          <span class="info-icon" tabindex="0" aria-label="Each streak (5 cards) = 1 Tax Break" data-tooltip="Each streak (5 cards) = 1 Tax Break">ⓘ</span>
+        </div>
         <div class="donate-row">
-          <button id="minusPower" class="btn-round alt">-</button>
+          <button id="minusNormal" class="btn-round alt" aria-label="Decrease normal donations">-</button>
+          <div class="normal-cards-container" id="normalCardsContainer">${blocks}</div>
+          <button id="plusNormal" class="btn-round" aria-label="Increase normal donations">+</button>
+        </div>
+
+        <div class="donate-label-inline" style="margin-top:0.25rem;">Power Cards or Cash Donated</div>
+        <div class="donate-row">
+          <button id="minusPower" class="btn-round alt" aria-label="Decrease power donations">-</button>
           <div class="power-circle-container">
             <div class="power-circle${powerDonated===0?' zero':''}" id="powerCircle">${powerDonated}</div>
           </div>
-          <button id="plusPower" class="btn-round">+</button>
+          <button id="plusPower" class="btn-round" aria-label="Increase power donations">+</button>
         </div>
 
-        ${debtOverview}
+        ${debtBar}
 
         <div class="donation-actions" id="donationActionButtons">
           ${confirmBtns}
@@ -617,9 +585,20 @@ function loadCalculator(){
     calculatorInitialized = true;
     previousBreaksPreview = breaksPreview;
     bindDonationControls();
-    attachMiniDebtHandlers();
+    attachDebtBarHandler();
     updateTimerDisplays();
     bindTimerClick();
+  }
+
+  function attachDebtBarHandler(){
+    const bar=document.getElementById('debtSummaryBar');
+    if(!bar) return;
+    const activate=()=>{
+      const partner = getPrimaryDebtPartner();
+      if(partner!=null) openDebtSheet(partner);
+    };
+    bar.onclick=activate;
+    bar.onkeypress=(e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); activate(); } };
   }
 
   function bindDonationControls(){
@@ -673,12 +652,7 @@ function loadCalculator(){
   }
 
   function updateDynamic(){
-    if(!calculatorInitialized){
-      initialRender();
-      return;
-    }
     const { blocks, breaksPreview } = computeDonationVisuals();
-
     const blocksContainer=document.getElementById('normalCardsContainer');
     if(blocksContainer) blocksContainer.innerHTML=blocks;
 
@@ -703,12 +677,14 @@ function loadCalculator(){
 
     previousBreaksPreview = breaksPreview;
     updateButtonsState();
+    refreshOverviewOnly();
   }
 
   initialRender();
   updateButtonsState();
 }
 
+/* Confirm donations */
 function finalizeDonations(n,pw){
   const p=players[currentPlayerIndex];
   const total=p.progress + n;
@@ -733,7 +709,7 @@ function nextPlayer(){
   showPlayerCards();
 }
 
-/* Timer */
+/* ---------- Timer ---------- */
 function bindTimerClick(){
   setTimeout(()=>{
     const playerCardTimer=document.querySelector('.player-card.active .player-card-timer');
@@ -771,7 +747,7 @@ function updateTimerDisplays(){
   if(sheetTimer) sheetTimer.textContent=timeLeft;
 }
 
-/* Card Interaction / Scroll */
+/* ---------- Card Scroll & Selection ---------- */
 function setPlayerRowEdgePadding(){
   const row = document.getElementById('playerCardsRow');
   if(!row) return;
@@ -904,19 +880,14 @@ window.addEventListener('resize', debounce(()=>{
   scrollToActiveCard(true);
 },150));
 
-/* Outstanding Debts Gate */
+/* ---------- Outstanding Debts Gate ---------- */
 function showEndgame(){
   const debtData = collectOutstandingDebtors();
   if(debtData.debtors.length===0){
-    // New confirmation popup when there are no outstanding debts
     customPopup(
       "Did the bank run out of money? Proceed to file taxes.",
-      (proceed)=>{
-        if(proceed) loadEndgame();
-      },
-      false,
-      "Yes",
-      "No"
+      (proceed)=>{ if(proceed) loadEndgame(); },
+      false,"Yes","No"
     );
   } else {
     showOutstandingDebtsPopup(debtData);
@@ -938,7 +909,7 @@ function collectOutstandingDebtors(){
       });
       if(total>0){
         if(!debtorsMap.has(a)){
-            debtorsMap.set(a,{ debtorIndex:a, totalOwed:0, details:[] });
+          debtorsMap.set(a,{ debtorIndex:a, totalOwed:0, details:[] });
         }
         const entry=debtorsMap.get(a);
         entry.totalOwed += total;
@@ -949,8 +920,10 @@ function collectOutstandingDebtors(){
   return { debtors:[...debtorsMap.values()] };
 }
 
-/* Outstanding Debts Popup (selectable) */
+/* Outstanding debts popup
+   FIX: Added visual check styling & reliable event binding / accessible feedback */
 function showOutstandingDebtsPopup(data){
+  ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const btnBox=document.getElementById('customPopupButtons');
@@ -961,33 +934,31 @@ function showOutstandingDebtsPopup(data){
     </p>
   `;
 
+  // Build debtor blocks (click-to-select)
   const blocks = data.debtors.map(d=>{
     const debtorName = players[d.debtorIndex].name;
     const lines = d.details.map(det=>{
       const payeeName = players[det.payeeIndex].name;
-      return `<div style="margin-bottom:0.35rem;">→ Owes <span class="to">${payeeName}</span>: ${det.total}</div>`;
+      return `<div style="margin-bottom:0.35rem;">→ Owes <span class="to" style="color:#d4af7f;">${payeeName}</span>: ${det.total}</div>`;
     }).join('');
     return `
-      <div class="debtor-block" data-debtor="${d.debtorIndex}" tabindex="0" role="button" aria-pressed="false">
-        <div class="debtor-header">
-          <span>${debtorName} (Total Owed: ${d.totalOwed})</span>
-        </div>
+      <div class="debtor-block" data-debtor="${d.debtorIndex}" tabindex="0" role="checkbox" aria-checked="false">
+        <div class="debtor-header">${debtorName} (Total Owed: ${d.totalOwed})</div>
         <div class="debtor-debts">
           ${lines}
         </div>
-        <div class="debtor-select-hint">Tap to select</div>
+        <div class="debtor-select-hint">Tap / Press Enter to confirm</div>
       </div>
     `;
   }).join('');
 
-  const content = `
+  msg.innerHTML = `
     <h2 class="lilita" style="color:var(--color-accent); margin:0 0 0.6rem;">Outstanding Debts</h2>
     ${instruction}
     <div class="outstanding-wrapper">
       ${blocks}
     </div>
   `;
-  msg.innerHTML = content;
 
   btnBox.innerHTML = `
     <button id="outstandingProceedBtn" class="styled-btn" disabled>Proceed to Filing</button>
@@ -1002,26 +973,44 @@ function showOutstandingDebtsPopup(data){
 
   function updateProceed(){
     const allSelected = debtorBlocks.every(el=>el.classList.contains('selected'));
-    proceed.disabled = !allSelected;
+    if(proceed){
+      proceed.disabled = !allSelected;
+      if(allSelected){
+        proceed.setAttribute('aria-disabled','false');
+      } else {
+        proceed.setAttribute('aria-disabled','true');
+      }
+    }
   }
   function toggleSelection(el){
     el.classList.toggle('selected');
-    const pressed = el.classList.contains('selected');
-    el.setAttribute('aria-pressed', pressed?'true':'false');
+    const selected = el.classList.contains('selected');
+    el.setAttribute('aria-checked', selected ? 'true' : 'false');
     updateProceed();
   }
+
+  // Event delegation fallback (in case dynamic rebuild)
   debtorBlocks.forEach(el=>{
     el.addEventListener('click', ()=>toggleSelection(el));
     el.addEventListener('keydown', e=>{
-      if(e.key==='Enter' || e.key===' ') { e.preventDefault(); toggleSelection(el); }
+      if(e.key==='Enter' || e.key===' '){
+        e.preventDefault();
+        toggleSelection(el);
+      }
     });
   });
+
   updateProceed();
-  proceed.onclick=()=>{ overlay.style.display='none'; loadEndgame(); };
-  cancel.onclick=()=>{ overlay.style.display='none'; };
+
+  if(proceed){
+    proceed.onclick=()=>{ overlay.style.display='none'; loadEndgame(); };
+  }
+  if(cancel){
+    cancel.onclick=()=>{ overlay.style.display='none'; };
+  }
 }
 
-/* Endgame & Taxes */
+/* ---------- Endgame & Taxes ---------- */
 function loadEndgame(){
   if(timerInterval) clearInterval(timerInterval);
   timerRunningState=false;
@@ -1030,39 +1019,20 @@ function loadEndgame(){
       <div class="final-result-card-inner">
         <div class="final-result-name player-name" style="margin-bottom:0.55rem;">${p.name}</div>
         <div style="display:flex;flex-direction:column;gap:0.6rem;">
-          <input 
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            autocomplete="off"
-            enterkeyhint="next"
-            id="coins_${i}"
-            placeholder="Haggleoffs"
-            aria-label="${p.name} Haggleoffs"
-            style="font-size:1rem;">
-          <input 
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            autocomplete="off"
-            enterkeyhint="next"
-            id="props_${i}"
-            placeholder="Properties"
-            aria-label="${p.name} Properties"
-            style="font-size:1rem;">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" id="coins_${i}" placeholder="Haggleoffs" aria-label="${p.name} Haggleoffs" style="font-size:1rem;">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" id="props_${i}" placeholder="Properties" aria-label="${p.name} Properties" style="font-size:1rem;">
         </div>
       </div>
     </div>`).join('');
   document.getElementById('mainGameContainer').innerHTML=`
     <div class="calculatorBox">
       <h2 class="lilita" style="margin-top:0;">Endgame</h2>
-      <p style="font-size:1rem;margin-top:-0.2rem;">Enter each player’s Haggleoffs and Properties.</p>
+      <p style="font-size:1rem;margin-top:-0.2rem; text-align:center;">Enter each player’s Haggleoffs and Properties.</p>
       <div style="display:flex;gap:1rem;overflow-x:auto;padding:0.4rem 0.25rem;">${blocks}</div>
       <button class="styled-btn" onclick="calculateFinalTaxes()">Calculate Taxes</button>
       <div id="finalSummary" style="display:none;"></div>
     </div>`;
 
-  /* Sanitize inputs to digits only (mobile numeric keypad hint enforcement) */
   players.forEach((pl,i)=>{
     ['coins','props'].forEach(f=>{
       const el=document.getElementById(`${f}_${i}`);
@@ -1070,9 +1040,7 @@ function loadEndgame(){
         el.addEventListener('input', ()=>{
           const cursorPos = el.selectionStart;
             el.value = el.value.replace(/\D+/g,'');
-          try {
-            el.setSelectionRange(cursorPos, cursorPos);
-          } catch(e){}
+          try { el.setSelectionRange(cursorPos, cursorPos); } catch(e){}
         });
       }
     });
@@ -1088,10 +1056,7 @@ function getTaxBracketMessage(coins,props){
 }
 function calculateFinalTaxes(){
   const summary=document.getElementById('finalSummary');
-  if(!summary){
-    console.warn('finalSummary element missing.');
-    return;
-  }
+  if(!summary){ console.warn('finalSummary element missing.'); return; }
   summary.style.display='none'; summary.innerHTML='';
 
   for(let i=0;i<players.length;i++){
@@ -1212,7 +1177,7 @@ function calculateFinalTaxes(){
   },80);
 }
 
-/* Detailed breakdown */
+/* Detailed breakdown sheet */
 function showTaxBreakdown(i){
   const p=players[i];
   const coins=p.coins;
@@ -1292,7 +1257,7 @@ function getAuditRiskLevel(p){
   return "Low";
 }
 
-/* Exit & Reset */
+/* ---------- Exit & Reset ---------- */
 function exitToSetup(){
   lastPlayerNames = players.map(p=>p.name);
   players=[]; debts=[]; disallowedNormalCards=[];
@@ -1344,7 +1309,7 @@ function restorePlayerNamesAndSetup(){
 }
 function backToNameInput(){ restorePlayerNamesAndSetup(); }
 
-/* Popup System */
+/* ---------- Popup System ---------- */
 function ensurePopupElements(){
   let overlay=document.getElementById('customPopupOverlay');
   if(!overlay){
@@ -1427,7 +1392,7 @@ function customHTMLPopup(message, html, callback){
   if(typeof callback==='function') callback();
 }
 
-/* Setup Form */
+/* ---------- Setup Form ---------- */
 document.getElementById('playerForm').addEventListener('submit', e=>{
   e.preventDefault();
   let names=[...e.target.querySelectorAll("input[name='playerName']")].map(i=>i.value.trim());
@@ -1456,10 +1421,12 @@ document.getElementById('playerForm').addEventListener('submit', e=>{
   customPopup(msg, ()=>{ showPlayerCards(); }, true,"Yes","No", true);
 });
 
-/* Global */
+/* ---------- Global ---------- */
 window.dismissDisclaimer=function(){
   document.getElementById('disclaimerOverlay').style.display='none';
   document.getElementById('playerSetupBox').style.display='block';
   ensurePopupElements();
 };
 ensurePopupElements();
+
+/* End of file */
