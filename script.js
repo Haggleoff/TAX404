@@ -1030,8 +1030,26 @@ function loadEndgame(){
       <div class="final-result-card-inner">
         <div class="final-result-name player-name" style="margin-bottom:0.55rem;">${p.name}</div>
         <div style="display:flex;flex-direction:column;gap:0.6rem;">
-          <input type="number" id="coins_${i}" min="0" step="1" placeholder="Haggleoffs" style="font-size:1rem;">
-          <input type="number" id="props_${i}" min="1" step="1" placeholder="Properties" style="font-size:1rem;">
+          <input 
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            enterkeyhint="next"
+            id="coins_${i}"
+            placeholder="Haggleoffs"
+            aria-label="${p.name} Haggleoffs"
+            style="font-size:1rem;">
+          <input 
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            enterkeyhint="next"
+            id="props_${i}"
+            placeholder="Properties"
+            aria-label="${p.name} Properties"
+            style="font-size:1rem;">
         </div>
       </div>
     </div>`).join('');
@@ -1043,6 +1061,22 @@ function loadEndgame(){
       <button class="styled-btn" onclick="calculateFinalTaxes()">Calculate Taxes</button>
       <div id="finalSummary" style="display:none;"></div>
     </div>`;
+
+  /* Sanitize inputs to digits only (mobile numeric keypad hint enforcement) */
+  players.forEach((pl,i)=>{
+    ['coins','props'].forEach(f=>{
+      const el=document.getElementById(`${f}_${i}`);
+      if(el){
+        el.addEventListener('input', ()=>{
+          const cursorPos = el.selectionStart;
+            el.value = el.value.replace(/\D+/g,'');
+          try {
+            el.setSelectionRange(cursorPos, cursorPos);
+          } catch(e){}
+        });
+      }
+    });
+  });
 }
 function getTaxBracketMessage(coins,props){
   if(coins<=6 && props>3) return "Broke on paper, rich in acres.";
