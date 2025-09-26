@@ -68,22 +68,40 @@ body.modal-open { overflow:hidden; touch-action:none; }
 }
 
 #siteHeader { text-align:center; margin:1.2rem 0 0.4rem; }
+
+/* Smaller logo (previously 300x150) */
 #siteLogo {
-  width:300px; height:150px; object-fit:contain; display:block;
-  margin:0 auto 0.3rem; border-radius:var(--radius-xl);
+  width:250px;
+  height:125px;
+  object-fit:contain;
+  display:block;
+  margin:0 auto 0.3rem;
+  border-radius:var(--radius-xl);
 }
+
+/* Smaller title (previously 3rem) */
 #taxLogoText {
   margin:0.1rem 0 0.15rem;
-  font-size:3rem;
+  font-size:2.55rem;
   letter-spacing:.5px;
   text-shadow:0 0 10px #d4af7f55;
 }
+
 #headerTagline {
   margin:0 0 0.4rem;
   font-style:italic;
   font-size:1rem;
   color:#d9d9d9;
   letter-spacing:.4px;
+}
+
+@media (max-width:600px){
+  #siteLogo { width:220px; height:110px; }
+  #taxLogoText { font-size:2.3rem; }
+}
+@media (max-width:420px){
+  #siteLogo { width:200px; height:100px; }
+  #taxLogoText { font-size:2.15rem; }
 }
 
 @keyframes flicker {
@@ -635,7 +653,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .debt-adjust-small-btn.minus { background:var(--color-accent-alt); border-color:var(--color-accent-alt); color:#fff; }
 .debt-adjust-small-btn.minus:active { background:var(--color-accent-alt-dark); }
 
-/* Inline confirm (in debt sheet) */
+/* Inline confirm overlay + popup (Clear Debts) */
 .debt-inline-confirm-backdrop {
   position:absolute;
   inset:0;
@@ -687,8 +705,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   flex-direction:column;
   gap:.55rem;
 }
-
-/* Base styling (previous override) */
 .debt-inline-confirm .confirm-btns button {
   width:100%;
   font-size:.9rem;
@@ -705,8 +721,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 2px 6px #0006;
   border:2px solid transparent;
 }
-
-/* Specific variants */
 .debt-inline-confirm .confirm-btns button[data-action="both"] {
   background:var(--color-accent);
   color:#232323;
@@ -728,7 +742,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   border-color:#3d3d3d;
   color:#f1f1f1;
 }
-
 .debt-inline-confirm .confirm-btns button:active {
   transform:translateY(1px);
   filter:brightness(.92);
