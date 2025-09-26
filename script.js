@@ -991,7 +991,7 @@ function showOutstandingDebtsPopup(data){
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const btns=document.getElementById('customPopupButtons');
-  const instruction=`<p style="font-size:1rem; line-height:1.3; margin:0 0 .75rem;">Confirm each debtor has settled debts. Check all boxes to continue.</p>`;
+  const instruction=`<p style="font-size:1rem; line-height:1.3; margin:0 0 .75rem;">Did the bank run out of money? Before you may proceed to file taxes, settle these outstanding debts. Check all boxes to continue.</p>`;
   const blocks=data.debtors.map(d=>{
     const debtor=players[d.debtorIndex].name;
     const lines=d.details.map(det=>`<div style="margin-bottom:0.3rem;">→ Owes <span style="color:#d4af7f;">${players[det.payeeIndex].name}</span>: ${det.total}</div>`).join('');
@@ -1418,7 +1418,7 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   lastPlayerNames=names.slice();
   document.getElementById('playerSetupBox').style.display='none';
   const msg=`<span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">Reloading resets your progress.</span><br><br>
-  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player receives 1 free starting property during Setup,</span>
+  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property during the setup of the game, place at the center of the table the</span>
   <span style="color:#d4af7f;font-size:1rem;">Property Stack size: ${players.length+1}</span>`;
   customPopup(msg, ()=>showPlayerCards(), true,"Yes","No", true);
 });
