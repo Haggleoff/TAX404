@@ -1095,48 +1095,59 @@ function openFinalDetailSheet(i){
   const effAfter = p.finalEffectiveRate || (p.coins? (p.tax/p.coins*100):0);
   const share = p.netSharePercent ?? ((p.coins+p.properties)/ (totalAssetsForResults||1) * 100);
 
+  /* Property tax explanation */
+  let propertyTaxExplanation='';
+  if(p.coins<=6){
+    propertyTaxExplanation='Income ≤ 6: no property tax.';
+  } else if(p.properties>=4){
+    propertyTaxExplanation=`${p.properties} properties @2 each (4+ property surcharge).`;
+  } else {
+    propertyTaxExplanation=`${p.properties} properties @1 each.`;
+  }
+
+  /* Build lines (removed "Capped Tax After Deductions (Pre-AMT)" per request) */
   const lines = [
     { label:'Gross Income', val:p.coins },
     { label:'Properties', val:p.properties },
     { label:'Tax Breaks Earned', val:breaks },
     { label:'Earnings Bracket Tax', val:p.bracketTax },
-    { label:'Property Tax', val:p.propertyTax },
+    { label:'Property Tax', val:p.propertyTax, extra:propertyTaxExplanation },
     { label:'Gross Tax (Bracket + Property)', val:p.grossTax },
     { label:'Tax Ceiling (54% of Income)', val:p.taxCeiling },
-    { label:'Tax Avoided (Ceiling)', val:p.taxAvoidedCeiling },
+    { label:'Tax Avoided (Ceiling)', val:p.taxAvoidedCeiling, color:'#19a43c' },
     { label:'Deductions Applied', val:breaks },
-    { label:'Tax Avoided (Deductions)', val:p.taxAvoidedDeductions },
-    { label:'Capped Tax After Deductions (Pre-AMT)', val:p.baseBeforeAMT },
-    ...(p.amtApplied ? [{ label:`AMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation }] : []),
+    { label:'Tax Avoided (Deductions)', val:p.taxAvoidedDeductions, color:'#19a43c' },
+    ...(p.amtApplied ? [{ label:`AMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
     { label:'Effective Rate Before Deductions', val: effBefore.toFixed(1)+'%' },
     { label:'Effective Rate After Deductions', val: effAfter.toFixed(1)+'%' },
-    { label:'Final Taxes Owed', val:p.tax },
-    { label:'Net Income', val:net },
+    { label:'Final Taxes Owed', val:p.tax, color:'#dc143c' },
+    { label:'Net Income', val:net, color:'#19a43c' },
     { label:'Audit Risk', val:audit },
     { label:'Net Share', val: Math.round(share) + '%' }
   ];
 
-  const detailRows = lines.map(l=>`
+  const detailRows = lines.map(l=>{
+    const valueColor = l.color || 'var(--color-accent)';
+    return `
     <div class="detail-line" style="display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;padding:.4rem .55rem;border:1px solid #363636;border-radius:10px;background:#272727;">
       <div style="font-family:var(--font-display);letter-spacing:.4px;color:#e4e4e4;font-size:.85rem;line-height:1.2;">
         ${l.label}${l.extra?`<div style="margin-top:.25rem;font-size:.65rem;color:#bbb;letter-spacing:.3px;">${l.extra}</div>`:''}
       </div>
-      <div style="font-family:var(--font-display);color:var(--color-accent);font-size:.9rem;white-space:nowrap;">${l.val}</div>
-    </div>
-  `).join('');
+      <div style="font-family:var(--font-display);color:${valueColor};font-size:.9rem;white-space:nowrap;">${l.val}</div>
+    </div>`;
+  }).join('');
 
   sheet.innerHTML=`
     <div class="final-detail-sheet-header">
       <div class="final-detail-sheet-grip"></div>
       <h3 class="final-detail-sheet-title lilita" style="margin:.6rem 0 .2rem;font-size:1.25rem;">${p.name} – Detailed Filing</h3>
-      <div style="font-size:.75rem;color:#aaa;font-family:var(--font-display);letter-spacing:.5px;">Comprehensive post-filing summary</div>
     </div>
     <div class="final-detail-body" style="padding:.25rem .15rem .5rem .15rem;display:flex;flex-direction:column;gap:.6rem;">
       <div class="section-block" style="display:flex;flex-direction:column;gap:.6rem;">
         ${detailRows}
       </div>
-      <div class="message-block" style="margin-top:.4rem;padding:.65rem .7rem;border:1px solid #3a3a3a;border-radius:12px;background:#232323;">
-        <div style="font-family:var(--font-display);font-size:.8rem;letter-spacing:.55px;color:#cfcfcf;margin-bottom:.4rem;text-transform:uppercase;">Bracket Message</div>
+      <!-- Bracket message (label removed per request) -->
+      <div class="message-block" style="margin-top:.2rem;padding:.65rem .7rem;border:1px solid #3a3a3a;border-radius:12px;background:#232323;">
         <div style="font-family:var(--font-display);font-size:1rem;color:#d4af7f;letter-spacing:.5px;">${msg}</div>
       </div>
     </div>
@@ -1271,7 +1282,7 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   lastPlayerNames=names.slice();
   document.getElementById('playerSetupBox').style.display='none';
   const msg=`<span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">Reloading resets your progress.</span><br><br>
-  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property at the beginning of the game, place at the center of the table the</span>
+  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player receives 1 free starting property during Setup,</span>
   <span style="color:#d4af7f;font-size:1rem;">Property Stack size: ${players.length+1}</span>`;
   customPopup(msg, ()=>showPlayerCards(), true,"Yes","No", true);
 });
