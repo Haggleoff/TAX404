@@ -939,7 +939,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   #debtSheetTimerDisplay { font-size:2.1rem; min-width:64px; }
 }
 @media (max-width:560px){
-  .player-card { min-width:312px; max-width:312px; }
+  /* Increased width (+13px) for better readability on narrow phones */
+  .player-card { min-width:325px; max-width:325px; }
   .debt-cat-slider { height:13px; }
   .debt-cat-slider::-webkit-slider-thumb,
   .debt-cat-slider::-moz-range-thumb { width:24px; height:24px; }
@@ -948,7 +949,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .pill-status { min-width:54px; }
 }
 @media (max-width:440px){
-  .player-card { min-width:300px; max-width:300px; }
+  /* Increased width (+15px) for less squish on very narrow devices */
+  .player-card { min-width:315px; max-width:315px; }
   .debt-cat-slider { height:12px; }
   .debt-cat-slider::-webkit-slider-thumb,
   .debt-cat-slider::-moz-range-thumb { width:22px; height:22px; }
@@ -956,12 +958,14 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .pill { font-size:0.7rem; padding:0.25rem 0.48rem; }
   .pill-status { min-width:50px; }
 }
+@media (max-width:420px){
+  /* Increased width (+20px) compared to previous 285px for smallest phones */
+  .player-card { min-width:305px; max-width:305px; }
+  #debtSheetTimerDisplay { font-size:1.8rem; }
+}
+
 @media (max-width:480px){
   #debtSheetTimerDisplay { font-size:1.95rem; min-width:56px; }
-}
-@media (max-width:420px){
-  .player-card { min-width:285px; max-width:285px; }
-  #debtSheetTimerDisplay { font-size:1.8rem; }
 }
 
 /* Responsive name & timer scaling */
