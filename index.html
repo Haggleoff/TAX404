@@ -9,238 +9,96 @@
   </head>
     
   <body>
-  <html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+  <html lang="en">
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+  <head>
+    <meta charset="UTF-8">
+    <title>TAX404 by Haggleoff</title>
+    <link rel="stylesheet" href="./style.css">
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+  </head>
+    
+  <body>
+  <html lang="en">
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    <link rel="stylesheet" href="./style.css">
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+  </head>
+    
+  <body>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TAX404 - Haggleoff</title>
+    <link rel="icon" type="image/png" href="favicon.png" sizes="32x32" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Roboto&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Disclaimer -->
+    <div id="disclaimerOverlay" class="dimOverlay" style="display:flex;">
+      <div class="popupBox">
+        <h2 class="lilita" style="color:var(--color-accent); margin:0 0 0.6rem;">Legal Disclaimer</h2>
+        <p style="text-align:left; line-height:1.45; font-size:1rem; margin:0;">
+          TAX404 is not real tax software. It is a fictional component of Haggleoff’s card game experience.<br /><br />
+          Haggleoff LLC and TAX404 do not provide financial, accounting, legal, or tax advice. This is for entertainment and recreational purposes only.<br /><br />
+          By continuing, you acknowledge this experience is for gameplay only and not financial guidance.
+        </p>
+        <button class="styled-btn" style="margin-top:0.9rem;" onclick="dismissDisclaimer()">I Understand</button>
+      </div>
+    </div>
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+    <!-- Header -->
+    <div id="siteHeader">
+      <a href="https://haggleoff.com" target="_blank" aria-label="Haggleoff Website">
+        <img id="siteLogo" src="logo.png" alt="Haggleoff Logo" />
+      </a>
+      <h1 id="taxLogoText" class="lilita flicker-start">TAX404</h1>
+      <p id="headerTagline">Mediocre tax software courtesy of Haggleoff</p>
+    </div>
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+    <!-- Setup -->
+    <div id="playerSetupBox" style="display:none;">
+      <form id="playerForm" class="calculatorBox" autocomplete="off">
+        <h2 class="lilita" style="color:var(--color-accent); margin-top:0;">Enter Player Names</h2>
+        <div id="playerInputFields">
+          <input type="text" name="playerName" maxlength="10" placeholder="Player 1 (required)" required />
+            <input type="text" name="playerName" maxlength="10" placeholder="Player 2 (required)" required />
+        </div>
+        <div class="setup-actions" id="playerSetupActions">
+          <button type="button" class="btn-neutral styled-btn setup-btn" onclick="addPlayerField()">+ Add Player</button>
+          <button type="submit" class="styled-btn setup-btn">Start Game</button>
+        </div>
+      </form>
+    </div>
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
+    <!-- Main game -->
+    <div id="mainGameContainer"></div>
 
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Haggleoff TAX404</title>
-  <link rel="stylesheet" href="./style.css">
-
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>TAX404 - Haggleoff</title>
-  <link rel="icon" type="image/png" href="favicon.png" sizes="32x32" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Roboto&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-</head>
-<body>
-  <div id="disclaimerOverlay" class="dimOverlay" style="display:flex;">
-    <div class="popupBox">
-      <h2 class="lilita" style="color:var(--color-accent); margin:0 0 0.6rem;">Legal Disclaimer</h2>
-      <p style="text-align:left; line-height:1.45; font-size:1rem; margin:0;">
-        TAX404 is not real tax software. It is a fictional component of Haggleoff’s card game experience.<br><br>
-        Haggleoff LLC and TAX404 do not provide financial, accounting, legal, or tax advice. This is for entertainment and recreational purposes only.<br><br>
-        By continuing, you acknowledge this experience is for gameplay only and not financial guidance.
+    <!-- Footer -->
+    <div id="siteFooter" style="text-align:center; margin:2rem 0; color:#888;">
+      <p>
+        &copy; 2025 Haggleoff LLC. All rights reserved.<br />
+        Haggleoff, Haggieland, the V emblem, the Haggleoff logo, and TAX404 are trademarks of Haggleoff LLC.
       </p>
-      <button class="styled-btn" style="margin-top:0.9rem;" onclick="dismissDisclaimer()">I Understand</button>
     </div>
-  </div>
 
-  <div id="siteHeader">
-    <a href="https://haggleoff.com" target="_blank" aria-label="Haggleoff Website">
-      <img id="siteLogo" src="logo.png" alt="Haggleoff Logo">
-    </a>
-    <h1 id="taxLogoText" class="lilita flicker-start">TAX404</h1>
-    <p id="headerTagline">Mediocre tax software courtesy of Haggleoff</p>
-  </div>
-
-  <div id="playerSetupBox" style="display:none;">
-    <form id="playerForm" class="calculatorBox" autocomplete="off">
-      <h2 class="lilita" style="color:var(--color-accent); margin-top:0;">Enter Player Names</h2>
-      <div id="playerInputFields">
-        <input type="text" name="playerName" maxlength="20" placeholder="Player 1 (required)" required />
-      </div>
-      <div class="setup-actions" id="playerSetupActions">
-        <button type="button" class="btn-neutral styled-btn setup-btn" onclick="addPlayerField()">+ Add Player</button>
-        <button type="submit" class="styled-btn setup-btn">Start Game</button>
-      </div>
-    </form>
-  </div>
-
-  <div id="mainGameContainer"></div>
-
-  <!-- Popup Overlay -->
-  <div id="customPopupOverlay" class="dimOverlay" style="display:none;">
-    <div class="popupBox" id="customPopupBox">
-      <div id="customPopupMessage"></div>
-      <div id="customPopupButtons" style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center; margin-top:0.9rem;">
-        <button id="customPopupYes" class="styled-btn">OK</button>
-        <button id="customPopupNo" class="btn-neutral styled-btn">No</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="debtSheetOverlay" aria-hidden="true">
-    <div id="debtSheet" class="debt-sheet" role="dialog" aria-modal="true" aria-labelledby="debtSheetTitle"></div>
-  </div>
-
-  <div id="finalDetailSheetOverlay" aria-hidden="true">
-    <div id="finalDetailSheet" class="final-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="finalDetailSheetTitle"></div>
-  </div>
-
-  <div id="siteFooter">
-    <p>
-      &copy; 2025 Haggleoff LLC. All rights reserved.<br>
-      Haggleoff, Haggieland, the V emblem, the Haggleoff logo, and TAX404 are trademarks of Haggleoff LLC.
-    </p>
-  </div>
-
-  <script src="script.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      const logo = document.getElementById('taxLogoText');
-      logo.classList.remove('flicker-start');
-      setTimeout(()=>logo.classList.add('flicker-start'), 500);
-
-      // Ensure Player 2 field exists
-      const container = document.getElementById('playerInputFields');
-      if(container.querySelectorAll('input').length === 1){
-        const input=document.createElement('input');
-        input.type='text';
-        input.name='playerName';
-        input.maxLength=20;
-        input.placeholder='Player 2 (required)';
-        input.required=true;
-        container.appendChild(input);
-      }
-    });
-
-    function addPlayerField(){
-      const container=document.getElementById('playerInputFields');
-      const count=container.querySelectorAll('input').length+1;
-      if(count>7){ alert("Seven players is our legal max. Unless you wish to unionize."); return; }
-      const input=document.createElement('input');
-      input.type='text';
-      input.name='playerName';
-      input.maxLength=20;
-      input.placeholder = count===2 ? 'Player 2 (required)' : `Player ${count} (optional)`;
-      input.required = count===2;
-      container.appendChild(input);
-    }
-  </script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
-<!-- partial -->
-  <script  src="./script.js"></script>
+    <script  src="./script.js"></script>
 
-</body>
+  </body>
+  
 </html>
-<!-- partial -->
-  <script  src="./script.js"></script>
+    <script  src="./script.js"></script>
 
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
-</html>
-<!-- partial -->
-  <script  src="./script.js"></script>
-
-</body>
+  </body>
+  
 </html>
     <script  src="./script.js"></script>
 
