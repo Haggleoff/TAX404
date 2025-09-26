@@ -1,19 +1,42 @@
 /************************************************************
  * TAX404
- * Outstanding Debts Inline Clear Popup Enhancement
+ * Performance Optimizations (Slider Freeze Reduction – v3)
  *
- * Updates:
- * - Tie winners labelled "Shareholders" (existing change).
- * - Added inline (in-bottom-sheet) confirmation popup for "Clear All"
- *   with the following options:
- *     1. Clear ALL debts (both directions)
- *     2. Clear debts ACTIVE player owes OTHER
- *     3. Clear debts OTHER player owes ACTIVE
- *     4. Cancel
- * - Inline popup overlays inside the debt bottom sheet (no global modal).
+ * This version adds a fix for unintended player navigation while
+ * dragging debt sliders in the Outstanding Debts sheet.
+ *
+ * Root Cause of "quick freeze + auto switch":
+ * The sheet-level swipe detection (used to navigate between players)
+ * listens for horizontal drag gestures (touch/pointer). Slider drags
+ * also produce horizontal movement events. Because the sheet’s swipe
+ * detector does not exclude range input targets, a sufficiently
+ * horizontal slider drag could be misinterpreted as a navigation swipe,
+ * triggering navigateDebtPlayer(), rebuilding the sheet, and producing
+ * a subtle "freeze / jump".
+ *
+ * Fixes:
+ * 1. Introduced a guard variable (suppressSheetSwipeGesture) and
+ *    target-based checks to ignore swipe detection when the initial
+ *    pointer/touch starts on a slider (input[type=range].debt-cat-slider).
+ * 2. Sheet swipe start handlers now bail out if the event target (or its
+ *    ancestor) is a slider.
+ * 3. Added explicit pointer/touch start listeners on sliders to set
+ *    suppressSheetSwipeGesture = true for the duration of the drag; released
+ *    on pointer/touch end (with a micro timeout to allow final 'change'
+ *    event processing).
+ * 4. Added stronger threshold (>= 60px and dominant horizontal movement)
+ *    for navigation to reduce accidental triggers.
+ * 5. Ensured no navigation occurs while dragging (draggingActiveCount>0).
+ *
+ * Previous optimizations retained:
+ *  - rAF batching of slider updates
+ *  - DOM node caching for slider rows
+ *  - Debounced aggregate updates
+ *  - Pulses only on release
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
+const DEBT_SLIDER_MAX = 20;
 
 let players = [];
 let currentPlayerIndex = 0;
@@ -26,7 +49,6 @@ let disallowedNormalCards = [];
 let lastPlayerNames = [];
 
 let suppressScrollSelect = false;
-let programmaticScrollUntil = 0;
 
 let normalDonated = 0;
 let powerDonated = 0;
@@ -45,6 +67,50 @@ const debtCategoryGroups = {
 };
 let debts = [];
 let totalAssetsForResults = 0;
+
+/* Persistent collapse state for debt groups (true = collapsed) */
+let debtGroupCollapsed = {};
+function initDebtGroupCollapsed(){
+  Object.keys(debtCategoryGroups).forEach(g=>{
+    if(typeof debtGroupCollapsed[g] === 'undefined') debtGroupCollapsed[g] = false;
+  });
+}
+initDebtGroupCollapsed();
+
+/* ===== Debt Sheet Slider DOM Cache ===== */
+let debtRowCache = {};
+function buildDebtRowCache(sheet){
+  debtRowCache = {};
+  debtCategories.forEach(cat=>{
+    const row = sheet.querySelector(`.debt-category-row[data-cat="${cat}"]`);
+    if(!row) return;
+    debtRowCache[cat] = {
+      statusEl: row.querySelector(`[data-dir="${cat}"]`),
+      amtEl: row.querySelector(`[data-amt="${cat}"]`),
+      sliderEl: row.querySelector(`.debt-cat-slider[data-cat="${cat}"]`)
+    };
+  });
+}
+
+/* Debounced aggregate updates (during drag) */
+let aggregateUpdateScheduled = false;
+let lastAggregateUpdate = 0;
+const AGGREGATE_MIN_INTERVAL = 120;
+function scheduleAggregateUpdates(a,b){
+  const now = performance.now();
+  if(!aggregateUpdateScheduled){
+    aggregateUpdateScheduled = true;
+    const delay = (now - lastAggregateUpdate) >= AGGREGATE_MIN_INTERVAL
+      ? 0
+      : (AGGREGATE_MIN_INTERVAL - (now - lastAggregateUpdate));
+    setTimeout(()=>{
+      lastAggregateUpdate = performance.now();
+      aggregateUpdateScheduled = false;
+      updatePairHeader(a,b);
+      refreshOverviewOnly();
+    },delay);
+  }
+}
 
 function ensureSheetElements(){
   if(!document.getElementById('debtSheetOverlay')){
@@ -90,29 +156,13 @@ function normalizeCategory(a,b,cat){
   }
 }
 function normalizePair(a,b){ debtCategories.forEach(cat=>normalizeCategory(a,b,cat)); }
-function clearCat(a,b,cat){ debts[a][b][cat]=0; debts[b][a][cat]=0; }
-function categoryPlus(a,b,cat){
-  let you=debts[a][b][cat]||0, they=debts[b][a][cat]||0;
-  if(you>0){
-    you--; if(you===0) clearCat(a,b,cat); else { debts[a][b][cat]=you; debts[b][a][cat]=0; }
-  } else { they++; debts[b][a][cat]=they; debts[a][b][cat]=0; }
-  normalizeCategory(a,b,cat);
-}
-function categoryMinus(a,b,cat){
-  let you=debts[a][b][cat]||0, they=debts[b][a][cat]||0;
-  if(they>0){
-    they--; if(they===0) clearCat(a,b,cat); else { debts[b][a][cat]=they; debts[a][b][cat]=0; }
-  } else { you++; debts[a][b][cat]=you; debts[b][a][cat]=0; }
-  normalizeCategory(a,b,cat);
-}
 function clearAllDebtsBetween(a,b){
   debtCategories.forEach(cat=>{
-    debts[a][b][cat]=0; debts[b][a][cat]=0;
+    debts[a][b][cat]=0;
+    debts[b][a][cat]=0;
   });
 }
 function clearDirectional(a,b,direction){
-  // direction 'a-b' means clear debts a owes b (debts[a][b])
-  // direction 'b-a' means clear debts b owes a (debts[b][a])
   debtCategories.forEach(cat=>{
     if(direction==='a-b') debts[a][b][cat]=0;
     else debts[b][a][cat]=0;
@@ -347,7 +397,6 @@ function updateDonationButtonsState(){
     lockElementBox(charity);
     charity.setAttribute('aria-pressed', tookCharityThisTurn? 'true':'false');
     charity.classList.toggle('danger', tookCharityThisTurn);
-    charity.textContent='Took from Charity';
   }
 }
 function bindDonationControls(){
@@ -500,6 +549,7 @@ function openDebtSheet(otherIdx){
   overlay.style.display='flex';
   document.body.classList.add('modal-open');
   requestAnimationFrame(()=>sheet.classList.add('open'));
+  buildDebtRowCache(sheet);
   attachDebtSheetEvents(otherIdx);
   updateTimerDisplays(); bindTimerClick();
 }
@@ -507,46 +557,59 @@ function closeDebtSheet(){
   const overlay=document.getElementById('debtSheetOverlay');
   const sheet=document.getElementById('debtSheet');
   sheet.classList.remove('open');
-  document.body.classList.remove('modal-open');
-  setTimeout(()=>{ overlay.style.display='none'; sheet.innerHTML=''; },380);
+  document.body.classList.remove('modal-open','debt-dragging');
+  setTimeout(()=>{ overlay.style.display='none'; sheet.innerHTML=''; debtRowCache={}; },380);
   openDebtPlayerIndex=null; refreshOverviewOnly();
 }
 function renderDebtSheet(otherIdx){
+  initDebtGroupCollapsed();
   const a=currentPlayerIndex,b=otherIdx;
   const youOwe=sumYouOwe(a,b), theyOwe=sumTheyOwe(a,b);
   let groups='';
   Object.entries(debtCategoryGroups).forEach(([group,cats])=>{
+    const collapsed = !!debtGroupCollapsed[group];
     let rows='';
     cats.forEach(cat=>{
       normalizeCategory(a,b,cat);
       const you=debts[a][b][cat]||0;
       const they=debts[b][a][cat]||0;
-      const status=you>0?'owe':they>0?'collect':'none';
-      const amount=you>0?you:they>0?they:0;
-      const label=status==='owe'?'Owe':status==='collect'?'Collect':'None';
+      const sliderVal = they>0 ? they : (you>0 ? -you : 0);
+      const status = sliderVal<0?'owe':sliderVal>0?'collect':'none';
+      const amount = Math.abs(sliderVal);
+      const amountDisplay = amount===0?'0': amount===DEBT_SLIDER_MAX?'Lifetime':String(amount);
+      const statusLabel = status==='owe'?'Owe':status==='collect'?'Collect':'None';
       rows+=`
         <div class="debt-category-row" data-cat="${cat}">
           <img class="debt-cat-icon" src="${getImageName(cat)}" alt="${cat}">
           <div class="debt-cat-info">
-            <div class="debt-cat-name">${cat}</div>
-            <div class="debt-cat-stats">
-              <span data-dir="${cat}" class="pill pill-status ${status}">${label}</span>
-              <span data-amt="${cat}" class="pill pill-amt ${status}">${amount}</span>
+            <div class="debt-cat-headerline">
+              <div class="debt-cat-name">${cat}</div>
+              <div class="debt-cat-pills">
+                <span data-dir="${cat}" class="pill pill-status ${status}">${statusLabel}</span>
+                <span data-amt="${cat}" class="pill pill-amt ${status}${amount===DEBT_SLIDER_MAX?' pill-lifetime':''}">${amountDisplay}</span>
+              </div>
             </div>
-          </div>
-          <div class="debt-cat-adjust">
-            <button type="button" class="debt-adjust-small-btn minus" data-action="minus" data-cat="${cat}">&minus;</button>
-            <button type="button" class="debt-adjust-small-btn" data-action="plus" data-cat="${cat}">&plus;</button>
+            <div class="debt-slider-wrapper">
+              <div style="flex:1;position:relative;">
+                <input type="range" class="debt-cat-slider" min="${-DEBT_SLIDER_MAX}" max="${DEBT_SLIDER_MAX}" step="1" value="${sliderVal}" data-cat="${cat}" aria-label="${cat} debt slider">
+                <div class="debt-slider-center-mark"></div>
+              </div>
+            </div>
           </div>
         </div>`;
     });
     groups+=`
-      <div class="debt-group-block">
+      <div class="debt-group-block" data-group-block="${group}">
         <div class="debt-group-header">
           <h4>${group}</h4>
-          <button type="button" class="debt-group-toggle" data-group="${group}" aria-expanded="true">Hide</button>
+          <button type="button"
+            class="debt-group-toggle"
+            data-group="${group}"
+            aria-expanded="${collapsed? 'false':'true'}">${collapsed? 'Show':'Hide'}</button>
         </div>
-        <div class="debt-category-list" data-group-list="${group}" style="max-height:999px;opacity:1;">
+        <div class="debt-category-list"
+             data-group-list="${group}"
+             style="max-height:${collapsed? '0px':'999px'};opacity:${collapsed? '0':'1'};">
           ${rows}
         </div>
       </div>`;
@@ -577,21 +640,67 @@ function renderDebtSheet(otherIdx){
     </div>`;
 }
 
-/* Inline clear debts popup */
+/* ====== Slider performance batching & drag state ====== */
+let sliderBatch = new Map();
+let sliderRafId = null;
+let draggingActiveCount = 0;
+
+/* NEW: suppress swipe gesture detection during slider drag */
+let suppressSheetSwipeGesture = false;
+
+function beginDragging(){
+  draggingActiveCount++;
+  suppressSheetSwipeGesture = true;
+  document.body.classList.add('debt-dragging');
+}
+function endDragging(){
+  draggingActiveCount = Math.max(0, draggingActiveCount-1);
+  if(draggingActiveCount===0){
+    document.body.classList.remove('debt-dragging');
+    /* Delay clearing suppression slightly to ensure final 'change' handled */
+    setTimeout(()=>{ suppressSheetSwipeGesture = false; },50);
+  }
+}
+
+function queueSliderUpdate(a,b,cat,value){
+  sliderBatch.set(cat, value);
+  if(sliderRafId) return;
+  sliderRafId = requestAnimationFrame(()=>{
+    sliderBatch.forEach((val, c)=>{
+      handleDebtSliderInput(a,b,c,val,true);
+    });
+    sliderBatch.clear();
+    sliderRafId = null;
+    scheduleAggregateUpdates(a,b);
+  });
+}
+
+function handleDebtSliderInput(a,b,cat,value, skipPulse=false){
+  value=parseInt(value,10);
+  debts[a][b][cat]=0;
+  debts[b][a][cat]=0;
+  if(value<0){
+    debts[a][b][cat]=Math.abs(value);
+  } else if(value>0){
+    debts[b][a][cat]=value;
+  }
+  refreshCategoryRow(cat, skipPulse);
+  if(!skipPulse){
+    updatePairHeader(a,b);
+    refreshOverviewOnly();
+  }
+}
+
 function openInlineClearDebts(a,b){
   const sheet=document.getElementById('debtSheet');
   if(!sheet) return;
-  // Remove existing inline confirm if any
   sheet.querySelector('.debt-inline-confirm-backdrop')?.remove();
-
   const backdrop=document.createElement('div');
   backdrop.className='debt-inline-confirm-backdrop';
   backdrop.setAttribute('role','dialog');
   backdrop.setAttribute('aria-modal','true');
-
   const nameA=players[a]?.name||'Player A';
   const nameB=players[b]?.name||'Player B';
-
   backdrop.innerHTML=`
     <div class="debt-inline-confirm" tabindex="-1">
       <h4>Clear Debts</h4>
@@ -603,42 +712,22 @@ function openInlineClearDebts(a,b){
         <button type="button" class="btn-neutral styled-btn" data-action="cancel">Cancel</button>
       </div>
     </div>`;
-
   sheet.appendChild(backdrop);
-
   const focusTarget=backdrop.querySelector('.debt-inline-confirm');
-  if(focusTarget){ focusTarget.focus(); }
-
-  function close(){
-    backdrop.remove();
-  }
-
-  backdrop.addEventListener('click',e=>{
-    if(e.target===backdrop) close();
-  });
-
+  if(focusTarget) focusTarget.focus();
+  function close(){ backdrop.remove(); }
+  backdrop.addEventListener('click',e=>{ if(e.target===backdrop) close(); });
   backdrop.querySelectorAll('button[data-action]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const action=btn.dataset.action;
-      if(action==='both'){
-        clearAllDebtsBetween(a,b);
-        rebuildDebtSheet(b);
-      } else if(action==='a-b'){
-        clearDirectional(a,b,'a-b');
-        rebuildDebtSheet(b);
-      } else if(action==='b-a'){
-        clearDirectional(a,b,'b-a');
-        rebuildDebtSheet(b);
-      }
+      if(action==='both'){ clearAllDebtsBetween(a,b); rebuildDebtSheet(b); }
+      else if(action==='a-b'){ clearDirectional(a,b,'a-b'); rebuildDebtSheet(b); }
+      else if(action==='b-a'){ clearDirectional(a,b,'b-a'); rebuildDebtSheet(b); }
       if(action!=='cancel') refreshOverviewOnly();
       close();
     });
   });
-
-  // Escape handler
-  const escHandler=(ev)=>{
-    if(ev.key==='Escape'){ close(); window.removeEventListener('keydown',escHandler); }
-  };
+  const escHandler=(ev)=>{ if(ev.key==='Escape'){ close(); window.removeEventListener('keydown',escHandler); } };
   window.addEventListener('keydown',escHandler);
 }
 
@@ -646,51 +735,56 @@ function rebuildDebtSheet(otherIdx){
   const sheet=document.getElementById('debtSheet');
   if(sheet){
     sheet.innerHTML=renderDebtSheet(otherIdx);
+    buildDebtRowCache(sheet);
     attachDebtSheetEvents(otherIdx);
     updateTimerDisplays();
   }
 }
+function openClearDebtsOptions(a,b){ openInlineClearDebts(a,b); }
 
-/* Modified original clear options to use inline popup */
-function openClearDebtsOptions(a,b){
-  openInlineClearDebts(a,b);
-}
-
-function refreshCategoryRow(cat){
+function refreshCategoryRow(cat, skipPulse=false){
   const a=currentPlayerIndex, b=openDebtPlayerIndex;
   if(b==null) return;
   normalizeCategory(a,b,cat);
+
   const you=debts[a][b][cat]||0;
   const they=debts[b][a][cat]||0;
-  const status=you>0?'owe':they>0?'collect':'none';
-  const amount=you>0?you:they>0?they:0;
+  const sliderVal = they>0 ? they : (you>0 ? -you : 0);
+  const status=sliderVal<0?'owe':sliderVal>0?'collect':'none';
+  const amount=Math.abs(sliderVal);
+  const amountDisplay = amount===0?'0': amount===DEBT_SLIDER_MAX?'Lifetime':String(amount);
   const label=status==='owe'?'Owe':status==='collect'?'Collect':'None';
 
-  const sheet=document.getElementById('debtSheet');
-  if(!sheet) return;
-  const row=sheet.querySelector(`.debt-category-row[data-cat="${cat}"]`);
-  if(!row) return;
-  const statusEl=row.querySelector(`[data-dir="${cat}"]`);
-  const amtEl=row.querySelector(`[data-amt="${cat}"]`);
-  if(!amtEl || !statusEl) return;
+  const cached = debtRowCache[cat];
+  if(!cached) return;
+  const { statusEl, amtEl, sliderEl } = cached;
 
-  const prevAmount = parseInt(amtEl.textContent||'0',10);
-
-  statusEl.className=`pill pill-status ${status}`;
-  statusEl.textContent=label;
-  amtEl.className=`pill pill-amt ${status}`;
-  amtEl.textContent=amount;
-
-  if(amount>prevAmount && status!=='none'){
-    const pulseClass = status==='collect' ? 'value-pulse-green' : 'value-pulse-red';
-    [amtEl,statusEl].forEach(el=>{
-      el.classList.remove('value-pulse-green','value-pulse-red');
-      void el.offsetWidth;
-      el.classList.add(pulseClass);
-      setTimeout(()=>{ el.classList.remove(pulseClass); },700);
-    });
+  if(sliderEl && +sliderEl.value !== sliderVal){
+    sliderEl.value = sliderVal;
+  }
+  if(statusEl){
+    if(statusEl.textContent !== label) statusEl.textContent = label;
+    const desiredStatusClass = `pill pill-status ${status}`;
+    if(statusEl.className !== desiredStatusClass) statusEl.className = desiredStatusClass;
+  }
+  if(amtEl){
+    const prevNumeric = amtEl.textContent === 'Lifetime' ? DEBT_SLIDER_MAX : parseInt(amtEl.textContent||'0',10);
+    if(amtEl.textContent !== amountDisplay) amtEl.textContent = amountDisplay;
+    const desiredAmtClass = `pill pill-amt ${status}${amount===DEBT_SLIDER_MAX?' pill-lifetime':''}`;
+    if(amtEl.className !== desiredAmtClass) amtEl.className = desiredAmtClass;
+    if(!skipPulse && amount>prevNumeric && status!=='none' && amount!==DEBT_SLIDER_MAX){
+      const pulseClass = status==='collect' ? 'value-pulse-green' : 'value-pulse-red';
+      [amtEl,statusEl].forEach(el=>{
+        if(!el) return;
+        el.classList.remove('value-pulse-green','value-pulse-red');
+        void el.offsetWidth;
+        el.classList.add(pulseClass);
+        setTimeout(()=>el.classList.remove(pulseClass),700);
+      });
+    }
   }
 }
+
 function updatePairHeader(a,b){
   const sheet=document.getElementById('debtSheet');
   if(!sheet) return;
@@ -700,6 +794,7 @@ function updatePairHeader(a,b){
     netLine.innerHTML=`You Owe <span style="color:#dc143c;">${youOwe}</span> | They Owe You <span style="color:#19a43c;">${theyOwe}</span>`;
   }
 }
+
 function attachDebtSheetEvents(otherIdx){
   const a=currentPlayerIndex;
   const sheet=document.getElementById('debtSheet');
@@ -712,20 +807,43 @@ function attachDebtSheetEvents(otherIdx){
       const g=btn.dataset.group;
       const list=sheet.querySelector(`[data-group-list="${g}"]`);
       if(!list) return;
-      const exp=btn.getAttribute('aria-expanded')==='true';
-      if(exp){
-        list.style.maxHeight='0px'; list.style.opacity='0'; btn.setAttribute('aria-expanded','false'); btn.textContent='Show';
+      const currentlyCollapsed = debtGroupCollapsed[g] === true;
+      if(currentlyCollapsed){
+        list.style.maxHeight='999px';
+        list.style.opacity='1';
+        btn.setAttribute('aria-expanded','true');
+        btn.textContent='Hide';
+        debtGroupCollapsed[g] = false;
       } else {
-        list.style.maxHeight='999px'; list.style.opacity='1'; btn.setAttribute('aria-expanded','true'); btn.textContent='Hide';
+        list.style.maxHeight='0px';
+        list.style.opacity='0';
+        btn.setAttribute('aria-expanded','false');
+        btn.textContent='Show';
+        debtGroupCollapsed[g] = true;
       }
     });
   });
-  sheet.querySelectorAll('.debt-adjust-small-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const cat=btn.dataset.cat;
-      if(btn.dataset.action==='plus') categoryPlus(a,otherIdx,cat); else categoryMinus(a,otherIdx,cat);
-      refreshCategoryRow(cat); updatePairHeader(a,otherIdx); refreshOverviewOnly();
-    });
+
+  /* Slider event handling with suppression of sheet swipe navigation */
+  sheet.querySelectorAll('.debt-cat-slider').forEach(sl=>{
+    const cat = sl.dataset.cat;
+    const startDrag = ()=>{
+      beginDragging();
+    };
+    sl.addEventListener('pointerdown',startDrag,{passive:true});
+    sl.addEventListener('touchstart',startDrag,{passive:true});
+
+    sl.addEventListener('input',()=>queueSliderUpdate(a,otherIdx, cat, sl.value));
+
+    const endDrag = ()=>{
+      endDragging();
+      handleDebtSliderInput(a,otherIdx, cat, sl.value,false);
+    };
+    sl.addEventListener('change', endDrag);
+    sl.addEventListener('pointerup', endDrag,{passive:true});
+    sl.addEventListener('touchend', endDrag,{passive:true});
+    sl.addEventListener('pointercancel', endDrag,{passive:true});
+    sl.addEventListener('touchcancel', endDrag,{passive:true});
   });
 
   const prev=document.getElementById('debtPairPrevBtn');
@@ -733,21 +851,37 @@ function attachDebtSheetEvents(otherIdx){
   if(prev) prev.onclick=()=>navigateDebtPlayer(-1);
   if(next) next.onclick=()=>navigateDebtPlayer(1);
 
-  // swipe support
-  let startX=0,startY=0,active=false;
-  const start=(x,y)=>{ startX=x; startY=y; active=true; };
-  const end=(x,y)=>{
-    if(!active) return;
-    const dx=x-startX, dy=y-startY;
-    active=false;
-    if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)){
+  /* Sheet-level swipe navigation with slider suppression */
+  let swipeStartX=0, swipeStartY=0, swipeActive=false;
+  function swipeStart(x,y, evtTarget){
+    if(draggingActiveCount>0) return; // If dragging slider, ignore
+    if(suppressSheetSwipeGesture) return;
+    if(evtTarget.closest && evtTarget.closest('.debt-cat-slider')) return; // Do not start swipe on slider
+    swipeStartX=x; swipeStartY=y; swipeActive=true;
+  }
+  function swipeEnd(x,y){
+    if(!swipeActive) return;
+    swipeActive=false;
+    if(draggingActiveCount>0) return;
+    if(suppressSheetSwipeGesture) return;
+    const dx=x-swipeStartX;
+    const dy=y-swipeStartY;
+    if(Math.abs(dx)>=60 && Math.abs(dx) > Math.abs(dy)){ // stronger threshold
       if(dx<0) navigateDebtPlayer(1); else navigateDebtPlayer(-1);
     }
-  };
-  sheet.addEventListener('touchstart',e=>{ if(e.touches.length===1) start(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
-  sheet.addEventListener('touchend',e=>{ if(e.changedTouches.length===1) end(e.changedTouches[0].clientX,e.changedTouches[0].clientY); },{passive:true});
-  sheet.addEventListener('pointerdown',e=>{ if(e.isPrimary) start(e.clientX,e.clientY); });
-  sheet.addEventListener('pointerup',e=>{ if(e.isPrimary) end(e.clientX,e.clientY); });
+  }
+  sheet.addEventListener('touchstart',e=>{
+    if(e.touches.length===1) swipeStart(e.touches[0].clientX,e.touches[0].clientY,e.target);
+  },{passive:true});
+  sheet.addEventListener('touchend',e=>{
+    if(e.changedTouches.length===1) swipeEnd(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
+  },{passive:true});
+  sheet.addEventListener('pointerdown',e=>{
+    if(e.isPrimary) swipeStart(e.clientX,e.clientY,e.target);
+  });
+  sheet.addEventListener('pointerup',e=>{
+    if(e.isPrimary) swipeEnd(e.clientX,e.clientY);
+  });
 
   window.addEventListener('keydown', debtSheetKeyHandler);
   document.getElementById('debtSheetOverlay').addEventListener('click', e=>{
@@ -755,13 +889,17 @@ function attachDebtSheetEvents(otherIdx){
   }, { once:true });
   bindTimerClick();
 }
+
 function debtSheetKeyHandler(e){
   if(document.getElementById('debtSheetOverlay')?.style.display!=='flex') return;
+  if(draggingActiveCount>0) return; // ignore while dragging slider
   if(e.key==='ArrowLeft') navigateDebtPlayer(-1);
   else if(e.key==='ArrowRight') navigateDebtPlayer(1);
 }
+
 function navigateDebtPlayer(offset){
   if(players.length<=2 || openDebtPlayerIndex==null) return;
+  if(draggingActiveCount>0) return; // do not navigate mid-drag
   const others=players.map((_,i)=>i).filter(i=>i!==currentPlayerIndex);
   const pos=others.indexOf(openDebtPlayerIndex);
   if(pos===-1) return;
@@ -769,6 +907,7 @@ function navigateDebtPlayer(offset){
   const sheet=document.getElementById('debtSheet');
   if(sheet){
     sheet.innerHTML=renderDebtSheet(openDebtPlayerIndex);
+    buildDebtRowCache(sheet);
     attachDebtSheetEvents(openDebtPlayerIndex);
     updateTimerDisplays();
   }
@@ -927,7 +1066,7 @@ function loadEndgame(){
       if(el){
         el.addEventListener('input',()=>{
           const pos=el.selectionStart;
-            el.value=el.value.replace(/\D+/g,'');
+          el.value=el.value.replace(/\D+/g,'');
           try{ el.setSelectionRange(pos,pos);}catch(e){}
         });
       }
@@ -1090,12 +1229,11 @@ function openFinalDetailSheet(i){
   const net = p.coins - p.tax;
   const msg = getTaxBracketMessage(p.coins,p.properties);
   const audit = getAuditRiskLevel(p);
-  const breaks = p.breaks ?? ((p.streaks||0)+(p.powerCards||0));
+  const breaks = (p.streaks||0)+(p.powerCards||0);
   const effBefore = p.preDeductionEffectiveRate || (p.coins? (p.cappedTax/p.coins*100):0);
   const effAfter = p.finalEffectiveRate || (p.coins? (p.tax/p.coins*100):0);
   const share = p.netSharePercent ?? ((p.coins+p.properties)/ (totalAssetsForResults||1) * 100);
 
-  /* Property tax explanation */
   let propertyTaxExplanation='';
   if(p.coins<=6){
     propertyTaxExplanation='Income ≤ 6: no property tax.';
@@ -1105,7 +1243,6 @@ function openFinalDetailSheet(i){
     propertyTaxExplanation=`${p.properties} properties @1 each.`;
   }
 
-  /* Build lines (removed "Capped Tax After Deductions (Pre-AMT)" per request) */
   const lines = [
     { label:'Gross Income', val:p.coins },
     { label:'Properties', val:p.properties },
@@ -1146,7 +1283,6 @@ function openFinalDetailSheet(i){
       <div class="section-block" style="display:flex;flex-direction:column;gap:.6rem;">
         ${detailRows}
       </div>
-      <!-- Bracket message (label removed per request) -->
       <div class="message-block" style="margin-top:.2rem;padding:.65rem .7rem;border:1px solid #3a3a3a;border-radius:12px;background:#232323;">
         <div style="font-family:var(--font-display);font-size:1rem;color:#d4af7f;letter-spacing:.5px;">${msg}</div>
       </div>
@@ -1216,7 +1352,7 @@ function restorePlayerNamesAndSetup(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ---------- Popup system (existing) ---------- */
+/* ---------- Popup system ---------- */
 function ensurePopupElements(){
   let overlay=document.getElementById('customPopupOverlay');
   if(!overlay){
