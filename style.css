@@ -591,14 +591,66 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   transition:background var(--transition-fast), border-color var(--transition-fast);
 }
 .debt-category-row:active { background:#373737; }
-.debt-cat-icon {
+
+/* Thumbnail wrapper + full-size trash overlay */
+.debt-cat-thumb {
   width:52px; height:52px;
+  position:relative;
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  cursor:pointer;
+  flex:0 0 auto;
+}
+.debt-cat-thumb .debt-cat-icon {
+  width:100%; height:100%;
   border-radius:var(--radius-md);
   object-fit:contain;
   background:#191919;
   box-shadow:0 2px 6px #0005;
   pointer-events:none;
+  transition:opacity .25s, filter .25s;
 }
+.debt-cat-thumb[data-hasdebt="1"]:hover .debt-cat-icon {
+  filter:brightness(1.1);
+}
+.debt-cat-thumb.show-trash .debt-cat-icon {
+  opacity:.18;
+  filter:grayscale(.4) brightness(.8);
+}
+.debt-cat-trash-btn {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border-radius:var(--radius-md);
+  background:linear-gradient(145deg,#5a2525ee,#3d1515ee);
+  border:2px solid #7a3333;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  color:#f5dede;
+  box-shadow:0 4px 14px #000a, inset 0 0 0 2px #321010;
+  cursor:pointer;
+  opacity:0;
+  transform:scale(.9);
+  transition:opacity .22s, transform .22s, background .25s;
+  font-family:var(--font-display);
+  line-height:1;
+  padding:0;
+  pointer-events:none;
+}
+.debt-cat-thumb.show-trash .debt-cat-trash-btn {
+  opacity:1;
+  transform:scale(1);
+  pointer-events:auto;
+}
+.debt-cat-trash-btn:active {
+  transform:scale(.94);
+  background:linear-gradient(145deg,#7a3333,#4a1d1d);
+}
+
+/* Debt category info & pills */
 .debt-cat-info { display:flex; flex-direction:column; gap:0.35rem; font-family:var(--font-display); align-items:flex-start; }
 .debt-cat-name { font-size:1rem; letter-spacing:0.45px; color:var(--color-accent); margin:0; }
 .debt-cat-stats { font-size:1rem; display:flex; gap:0.6rem; align-items:center; }

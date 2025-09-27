@@ -25,6 +25,13 @@
  *   - Winner determination now: highest Net Income (coins - tax). If multiple tie,
  *     the player(s) among them with the highest Properties win.
  *     If still tied on Properties, all tied remain shareholders (co-winners).
+ *
+ * Outstanding Debt Category Quick-Clear (Added):
+ *   - Clicking a category thumbnail with debt reveals a full-size trash overlay button.
+ *   - Clicking the trash clears that category’s debt for the open pair.
+ *   - Clicking the thumbnail again toggles it off.
+ *   - NEW (Update): Clicking anywhere else in the debt sheet (outside any debt thumbnail or its trash button)
+ *     automatically hides any active trash overlay.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -121,6 +128,10 @@ function clearDirectional(a,b,direction){
     if(direction==='a-b') debts[a][b][cat]=0;
     else debts[b][a][cat]=0;
   });
+}
+function clearSingleCategory(a,b,cat){
+  debts[a][b][cat]=0;
+  debts[b][a][cat]=0;
 }
 
 /* Direct increment/decrement for new UI */
@@ -541,9 +552,12 @@ function renderDebtSheet(otherIdx){
       const status=you>0?'owe':they>0?'collect':'none';
       const amount=you>0?you:they>0?they:0;
       const label=status==='owe'?'Owe':status==='collect'?'Collect':'None';
+      const hasDebt = amount>0;
       rows+=`
         <div class="debt-category-row" data-cat="${cat}">
-          <img class="debt-cat-icon" src="${getImageName(cat)}" alt="${cat}">
+          <div class="debt-cat-thumb" data-cat-thumb="${cat}" data-cat="${cat}" data-hasdebt="${hasDebt?'1':'0'}">
+            <img class="debt-cat-icon" src="${getImageName(cat)}" alt="${cat}">
+          </div>
           <div class="debt-cat-info">
             <div class="debt-cat-name">${cat}</div>
             <div class="debt-cat-stats">
@@ -684,6 +698,17 @@ function refreshCategoryRow(cat){
   amtEl.className=`pill pill-amt ${status}`;
   amtEl.textContent=amount;
 
+  // Update thumbnail debt state
+  const thumb = row.querySelector(`.debt-cat-thumb[data-cat="${cat}"]`);
+  if(thumb){
+    thumb.dataset.hasdebt = amount>0 ? '1':'0';
+    if(amount===0){
+      thumb.classList.remove('show-trash');
+      const tb=thumb.querySelector('.debt-cat-trash-btn');
+      if(tb) tb.remove();
+    }
+  }
+
   if(amount>prevAmount && status!=='none'){
     const pulseClass = status==='collect' ? 'value-pulse-green' : 'value-pulse-red';
     [amtEl,statusEl].forEach(el=>{
@@ -706,11 +731,80 @@ function updatePairHeader(a,b){
   }
 }
 
+/* Helper: hide all active trash overlays */
+function hideAllTrashOverlays(){
+  const sheet=document.getElementById('debtSheet');
+  if(!sheet) return;
+  sheet.querySelectorAll('.debt-cat-thumb.show-trash').forEach(t=>{
+    t.classList.remove('show-trash');
+    const btn=t.querySelector('.debt-cat-trash-btn');
+    if(btn) btn.remove();
+  });
+}
+
 /* --- Single delegated handler (prevents multi-binding) --- */
 function handleDebtAdjustClick(e){
+  const sheet=document.getElementById('debtSheet');
+  if(!sheet) return;
+
+  const withinThumb = e.target.closest('.debt-cat-thumb');
+  const withinTrash = e.target.closest('.debt-cat-trash-btn');
+
+  // If clicking outside any thumb/trash and a trash overlay is active, hide all first
+  if(!withinThumb && !withinTrash){
+    if(sheet.querySelector('.debt-cat-thumb.show-trash')){
+      hideAllTrashOverlays();
+    }
+  }
+
+  /* Thumbnail & trash interactions */
+  const trashBtn = e.target.closest('.debt-cat-trash-btn');
+  if(trashBtn){
+    const thumb = trashBtn.parentElement;
+    const cat = thumb?.dataset.cat;
+    if(cat){
+      const a=currentPlayerIndex;
+      const b=openDebtPlayerIndex;
+      if(b!=null){
+        clearSingleCategory(a,b,cat);
+        refreshCategoryRow(cat);
+        updatePairHeader(a,b);
+        refreshOverviewOnly();
+      }
+    }
+    // After clearing, hide overlays
+    hideAllTrashOverlays();
+    return;
+  }
+
+  const thumb = e.target.closest('.debt-cat-thumb');
+  if(thumb && sheet.contains(thumb)){
+    if(thumb.dataset.hasdebt==='1'){
+      if(thumb.classList.contains('show-trash')){
+        // hide this overlay
+        thumb.classList.remove('show-trash');
+        const btn=thumb.querySelector('.debt-cat-trash-btn');
+        if(btn) btn.remove();
+      } else {
+        // hide others then show this
+        hideAllTrashOverlays();
+        if(!thumb.querySelector('.debt-cat-trash-btn')){
+          const btn=document.createElement('button');
+          btn.type='button';
+          btn.className='debt-cat-trash-btn';
+          btn.setAttribute('aria-label','Clear this category debt');
+          btn.innerHTML='🗑️';
+          thumb.appendChild(btn);
+        }
+        thumb.classList.add('show-trash');
+      }
+    }
+    return;
+  }
+
+  /* Adjust buttons */
   const btn = e.target.closest('.debt-adjust-dyn-btn');
   if(!btn) return;
-  const sheet=document.getElementById('debtSheet');
   if(!sheet || !sheet.contains(btn)) return;
   const cat=btn.dataset.cat;
   const action=btn.dataset.action;
@@ -729,7 +823,6 @@ function handleDebtAdjustClick(e){
     decrementCollect(a,b,cat);
   }
 
-  // Reset to NONE if zeroed
   if((debts[a][b][cat]||0)===0 && (debts[b][a][cat]||0)===0){
     debts[a][b][cat]=0;
     debts[b][a][cat]=0;
@@ -770,7 +863,6 @@ function attachDebtSheetEvents(otherIdx){
 
   debtCategories.forEach(cat=>updateCategoryControls(cat));
 
-  /* Guard to avoid multiple click handler attachments */
   if(!sheet.dataset.adjustHandlerBound){
     sheet.addEventListener('click', handleDebtAdjustClick);
     sheet.dataset.adjustHandlerBound='1';
@@ -812,6 +904,15 @@ function debtSheetKeyHandler(e){
   if(document.getElementById('debtSheetOverlay')?.style.display!=='flex') return;
   if(e.key==='ArrowLeft') navigateDebtPlayer(-1);
   else if(e.key==='ArrowRight') navigateDebtPlayer(1);
+  else if(e.key==='Escape'){
+    // Hide trash overlays first; if none, then close sheet
+    const sheet=document.getElementById('debtSheet');
+    if(sheet && sheet.querySelector('.debt-cat-thumb.show-trash')){
+      hideAllTrashOverlays();
+    } else {
+      closeDebtSheet();
+    }
+  }
 }
 
 function navigateDebtPlayer(offset){
@@ -1055,7 +1156,7 @@ function loadEndgame(){
       if(el){
         el.addEventListener('input',()=>{
           const pos=el.selectionStart;
-          el.value=el.value.replace(/\D+/g,'');
+            el.value=el.value.replace(/\D+/g,'');
           try{ el.setSelectionRange(pos,pos);}catch(e){}
         });
       }
@@ -1143,16 +1244,12 @@ function calculateFinalTaxes(){
   const nets=players.map(p=>p.coins-p.tax);
   const maxNet=Math.max(...nets);
 
-  // Tie-breaker implementation:
-  // 1. Highest net income
-  // 2. If tie, highest properties among those tied
-  // 3. If still tie on properties, all are shareholders
   const primaryCandidates = players.filter(p => (p.coins - p.tax) === maxNet);
   let winners;
   if(primaryCandidates.length > 1){
     const maxPropsAmong = Math.max(...primaryCandidates.map(p=>p.properties));
     const propFiltered = primaryCandidates.filter(p=>p.properties === maxPropsAmong);
-    winners = propFiltered; // could still be >1 -> shareholders
+    winners = propFiltered;
   } else {
     winners = primaryCandidates;
   }
@@ -1162,7 +1259,6 @@ function calculateFinalTaxes(){
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  // Sort now reflects tie-break order for display: net desc, then properties desc
   const sorted=[...players].sort((a,b)=>{
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
     if(netDiff!==0) return netDiff;
@@ -1209,7 +1305,7 @@ function calculateFinalTaxes(){
             <span class="value">${p.tax}</span>
             ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" title="Alternative Minimum Tax triggered">AMT ${p.amtPercent}</span>` : ''}
           </div>
-          <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
+            <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
         </div>
 
