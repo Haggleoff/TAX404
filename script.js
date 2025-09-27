@@ -20,6 +20,11 @@
  *   - Inline clear debts popup.
  *   - Persistent collapse state for debt groups.
  *   - Timer relocation (top-right) with shared state.
+ *
+ * Tie-breaker (Added):
+ *   - Winner determination now: highest Net Income (coins - tax). If multiple tie,
+ *     the player(s) among them with the highest Properties win.
+ *     If still tied on Properties, all tied remain shareholders (co-winners).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -1137,12 +1142,34 @@ function calculateFinalTaxes(){
 
   const nets=players.map(p=>p.coins-p.tax);
   const maxNet=Math.max(...nets);
-  const winners=players.filter(p=>p.coins-p.tax===maxNet);
+
+  // Tie-breaker implementation:
+  // 1. Highest net income
+  // 2. If tie, highest properties among those tied
+  // 3. If still tie on properties, all are shareholders
+  const primaryCandidates = players.filter(p => (p.coins - p.tax) === maxNet);
+  let winners;
+  if(primaryCandidates.length > 1){
+    const maxPropsAmong = Math.max(...primaryCandidates.map(p=>p.properties));
+    const propFiltered = primaryCandidates.filter(p=>p.properties === maxPropsAmong);
+    winners = propFiltered; // could still be >1 -> shareholders
+  } else {
+    winners = primaryCandidates;
+  }
+
   totalAssetsForResults=players.reduce((s,p)=>s+p.coins+p.properties,0)||1;
   players.forEach(p=>{
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
-  const sorted=[...players].sort((a,b)=> (b.coins-b.tax)-(a.coins-a.tax));
+
+  // Sort now reflects tie-break order for display: net desc, then properties desc
+  const sorted=[...players].sort((a,b)=>{
+    const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
+    if(netDiff!==0) return netDiff;
+    const propDiff = b.properties - a.properties;
+    if(propDiff!==0) return propDiff;
+    return 0;
+  });
 
   const ribbon = winners.length===1
     ? `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`
