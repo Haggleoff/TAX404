@@ -2,23 +2,24 @@
  * TAX404
  * Dynamic Debt Button Interaction Update
  *
- * New Feature (Requested):
- *   Debt sheet category adjust buttons now use a contextual,
- *   direction-based UI:
- *     - NONE state: Left button (red) = start OWE, Right button (green) = start COLLECT; both show no symbols.
- *     - OWE state: Both buttons turn red. Left shows '+' (increase owed), Right shows '−' (decrease owed).
- *     - COLLECT state: Both buttons turn green. Right shows '+' (increase collectible), Left shows '−' (decrease collectible).
- *     - When an amount is reduced back to zero, buttons revert to NONE state (red init / green init with no symbols).
+ * Bug Fix (Current):
+ *   - Prevent multiple increments (was adding 2 or 3 per click).
+ *     Cause: every rebuild of the debt sheet re‑attached a new
+ *     click delegation listener, so one physical click fired
+ *     multiple handlers. Now the delegated handler is attached
+ *     only once per sheet lifecycle (guarded with a dataset flag).
+ *     Also guarded the window keydown listener to avoid stacking.
  *
- * Additional Behavior:
- *   - Colors (red for owe, green for collect) provide immediate directional context.
- *   - Symbols only appear once a direction is chosen.
- *   - Accessibility: ARIA labels update to reflect current action.
+ * Dynamic Debt Buttons (Previously Added Feature):
+ *   - NONE state: Left red button (start OWE), Right green button (start COLLECT) – no symbols.
+ *   - OWE state: Both red. Left = '+' (increase owed), Right = '−' (decrease owed).
+ *   - COLLECT state: Both green. Right = '+' (increase collectible), Left = '−' (decrease collectible).
+ *   - Returning to zero resets to NONE state.
  *
- * Existing enhancements retained:
+ * Other retained enhancements:
  *   - Inline clear debts popup.
  *   - Persistent collapse state for debt groups.
- *   - Timer synchronization & relocation (top-right).
+ *   - Timer relocation (top-right) with shared state.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -57,6 +58,9 @@ Object.keys(debtCategoryGroups).forEach(g => debtGroupCollapsed[g] = false);
 
 let debts = [];
 let totalAssetsForResults = 0;
+
+/* Keydown listener guard */
+let debtSheetKeydownBound = false;
 
 function ensureSheetElements(){
   if(!document.getElementById('debtSheetOverlay')){
@@ -119,13 +123,11 @@ function incrementOwe(a,b,cat){ debts[a][b][cat]=(debts[a][b][cat]||0)+1; debts[
 function decrementOwe(a,b,cat){
   const cur=debts[a][b][cat]||0;
   if(cur>0) debts[a][b][cat]=cur-1;
-  if(debts[a][b][cat]===0) debts[a][b][cat]=0;
 }
 function incrementCollect(a,b,cat){ debts[b][a][cat]=(debts[b][a][cat]||0)+1; debts[a][b][cat]=0; }
 function decrementCollect(a,b,cat){
   const cur=debts[b][a][cat]||0;
   if(cur>0) debts[b][a][cat]=cur-1;
-  if(debts[b][a][cat]===0) debts[b][a][cat]=0;
 }
 
 /* ---------- Donation visuals ---------- */
@@ -605,7 +607,6 @@ function updateCategoryControls(cat){
   const left=adjust.querySelector('[data-btn="left"]');
   const right=adjust.querySelector('[data-btn="right"]');
 
-  // reset classes/text
   [left,right].forEach(btn=>{
     if(!btn) return;
     btn.className='debt-adjust-dyn-btn';
@@ -614,7 +615,6 @@ function updateCategoryControls(cat){
   });
 
   if(status==='none'){
-    // Left = start owe (red), Right = start collect (green)
     if(left){
       left.classList.add('debt-adjust-init-owe');
       left.setAttribute('aria-label',`Start owing ${cat}`);
@@ -626,7 +626,6 @@ function updateCategoryControls(cat){
       right.dataset.action='start-collect';
     }
   } else if(status==='owe'){
-    // Both red. Left = increase, Right = decrease
     if(left){
       left.classList.add('debt-adjust-owe');
       left.textContent='+';
@@ -640,7 +639,6 @@ function updateCategoryControls(cat){
       right.dataset.action='dec-owe';
     }
   } else {
-    // collect state: both green. Right = increase, Left = decrease
     if(left){
       left.classList.add('debt-adjust-collect');
       left.textContent='−';
@@ -703,6 +701,39 @@ function updatePairHeader(a,b){
   }
 }
 
+/* --- Single delegated handler (prevents multi-binding) --- */
+function handleDebtAdjustClick(e){
+  const btn = e.target.closest('.debt-adjust-dyn-btn');
+  if(!btn) return;
+  const sheet=document.getElementById('debtSheet');
+  if(!sheet || !sheet.contains(btn)) return;
+  const cat=btn.dataset.cat;
+  const action=btn.dataset.action;
+  if(!cat || !action) return;
+  const a=currentPlayerIndex;
+  const b=openDebtPlayerIndex;
+  if(b==null) return;
+
+  if(action==='start-owe' || action==='inc-owe'){
+    incrementOwe(a,b,cat);
+  } else if(action==='start-collect' || action==='inc-collect'){
+    incrementCollect(a,b,cat);
+  } else if(action==='dec-owe'){
+    decrementOwe(a,b,cat);
+  } else if(action==='dec-collect'){
+    decrementCollect(a,b,cat);
+  }
+
+  // Reset to NONE if zeroed
+  if((debts[a][b][cat]||0)===0 && (debts[b][a][cat]||0)===0){
+    debts[a][b][cat]=0;
+    debts[b][a][cat]=0;
+  }
+  refreshCategoryRow(cat);
+  updatePairHeader(a,b);
+  refreshOverviewOnly();
+}
+
 function attachDebtSheetEvents(otherIdx){
   const a=currentPlayerIndex;
   const sheet=document.getElementById('debtSheet');
@@ -710,7 +741,6 @@ function attachDebtSheetEvents(otherIdx){
   sheet.querySelector('#closeSheetBtn').onclick=closeDebtSheet;
   sheet.querySelector('#clearAllPairBtn').onclick=()=>openClearDebtsOptions(a,otherIdx);
 
-  // Collapse toggles
   sheet.querySelectorAll('.debt-group-toggle').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const g=btn.dataset.group;
@@ -733,41 +763,13 @@ function attachDebtSheetEvents(otherIdx){
     });
   });
 
-  // Initial control setup
   debtCategories.forEach(cat=>updateCategoryControls(cat));
 
-  // Event delegation for adjust buttons
-  sheet.addEventListener('click', (e)=>{
-    const btn = e.target.closest('.debt-adjust-dyn-btn');
-    if(!btn || !sheet.contains(btn)) return;
-    const cat=btn.dataset.cat;
-    const action=btn.dataset.action;
-    if(!cat || !action) return;
-
-    if(action==='start-owe'){
-      incrementOwe(a,otherIdx,cat);
-    } else if(action==='start-collect'){
-      incrementCollect(a,otherIdx,cat);
-    } else if(action==='inc-owe'){
-      incrementOwe(a,otherIdx,cat);
-    } else if(action==='dec-owe'){
-      decrementOwe(a,otherIdx,cat);
-    } else if(action==='inc-collect'){
-      incrementCollect(a,otherIdx,cat);
-    } else if(action==='dec-collect'){
-      decrementCollect(a,otherIdx,cat);
-    }
-    // Clean up if direction flips to zero
-    const you=debts[a][otherIdx][cat]||0;
-    const they=debts[otherIdx][a][cat]||0;
-    if(you===0 && they===0){
-      debts[a][otherIdx][cat]=0;
-      debts[otherIdx][a][cat]=0;
-    }
-    refreshCategoryRow(cat);
-    updatePairHeader(a,otherIdx);
-    refreshOverviewOnly();
-  });
+  /* Guard to avoid multiple click handler attachments */
+  if(!sheet.dataset.adjustHandlerBound){
+    sheet.addEventListener('click', handleDebtAdjustClick);
+    sheet.dataset.adjustHandlerBound='1';
+  }
 
   const prev=document.getElementById('debtPairPrevBtn');
   const next=document.getElementById('debtPairNextBtn');
@@ -790,7 +792,11 @@ function attachDebtSheetEvents(otherIdx){
   sheet.addEventListener('pointerdown',e=>{ if(e.isPrimary) start(e.clientX,e.clientY); });
   sheet.addEventListener('pointerup',e=>{ if(e.isPrimary) end(e.clientX,e.clientY); });
 
-  window.addEventListener('keydown', debtSheetKeyHandler);
+  if(!debtSheetKeydownBound){
+    window.addEventListener('keydown', debtSheetKeyHandler);
+    debtSheetKeydownBound = true;
+  }
+
   document.getElementById('debtSheetOverlay').addEventListener('click', e=>{
     if(e.target.id==='debtSheetOverlay') closeDebtSheet();
   }, { once:true });
@@ -969,7 +975,7 @@ function showOutstandingDebtsPopup(data){
   const overlay=document.getElementById('customPopupOverlay');
   const msg=document.getElementById('customPopupMessage');
   const btns=document.getElementById('customPopupButtons');
-  const instruction=`<p style="font-size:1rem; line-height:1.3; margin:0 0 .75rem;">Did the bank run out of money? Before proceeding to file taxes, settle these outstanding debts. Check all boxes to continue.</p>`;
+  const instruction=`<p style="font-size:1rem; line-height:1.3; margin:0 0 .75rem;">Did the bank run out of money? Before filing taxes, settle these outstanding debts. Check all boxes to continue.</p>`;
   const blocks=data.debtors.map(d=>{
     const debtor=players[d.debtorIndex].name;
     const lines=d.details.map(det=>`<div style="margin-bottom:0.3rem;">→ Owes <span style="color:#d4af7f;">${players[det.payeeIndex].name}</span>: ${det.total}</div>`).join('');
@@ -1396,7 +1402,7 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   lastPlayerNames=names.slice();
   document.getElementById('playerSetupBox').style.display='none';
   const msg=`<span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">Reloading resets your progress.</span><br><br>
-  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property during the setup of the game, place at the center of the table the</span>
+  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property during the game setup, place at the center of the table</span>
   <span style="color:#d4af7f;font-size:1rem;">Property Stack size: ${players.length+1}</span>`;
   customPopup(msg, ()=>showPlayerCards(), true,"Yes","No", true);
 });

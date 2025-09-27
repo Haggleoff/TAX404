@@ -1062,3 +1062,28 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   font-family: var(--font-display) !important;
   font-weight: normal !important;
 }
+
+/* ---------- Disabled / Greyed-out States (Added) ---------- */
+.styled-btn:disabled,
+.donation-btn:disabled,
+.debt-footer-btn:disabled {
+  opacity:0.45;
+  cursor:not-allowed;
+  filter:grayscale(.35) brightness(.9);
+  pointer-events:none;
+}
+
+/* Specific styling for Outstanding Debts "Proceed to Filing" while disabled */
+#outstandingProceedBtn:disabled {
+  background:#6c5a3e !important;
+  color:#2a2a2a !important;
+  box-shadow:none !important;
+  opacity:0.5;
+  filter:grayscale(.45) brightness(.85);
+  text-shadow:none;
+}
+
+/* Ensure focus outline is removed when disabled (accessibility: it is not focusable anyway) */
+#outstandingProceedBtn:disabled:focus {
+  outline:none;
+}
