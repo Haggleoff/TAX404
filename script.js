@@ -2,36 +2,23 @@
  * TAX404
  * Dynamic Debt Button Interaction Update
  *
- * Bug Fix (Current):
- *   - Prevent multiple increments (was adding 2 or 3 per click).
- *     Cause: every rebuild of the debt sheet re‑attached a new
- *     click delegation listener, so one physical click fired
- *     multiple handlers. Now the delegated handler is attached
- *     only once per sheet lifecycle (guarded with a dataset flag).
- *     Also guarded the window keydown listener to avoid stacking.
- *
- * Dynamic Debt Buttons (Previously Added Feature):
- *   - NONE state: Left red button (start OWE), Right green button (start COLLECT) – no symbols.
- *   - OWE state: Both red. Left = '+' (increase owed), Right = '−' (decrease owed).
- *   - COLLECT state: Both green. Right = '+' (increase collectible), Left = '−' (decrease collectible).
- *   - Returning to zero resets to NONE state.
- *
- * Other retained enhancements:
- *   - Inline clear debts popup.
- *   - Persistent collapse state for debt groups.
- *   - Timer relocation (top-right) with shared state.
- *
- * Tie-breaker (Added):
- *   - Winner determination now: highest Net Income (coins - tax). If multiple tie,
- *     the player(s) among them with the highest Properties win.
- *     If still tied on Properties, all tied remain shareholders (co-winners).
- *
- * Outstanding Debt Category Quick-Clear (Added):
- *   - Clicking a category thumbnail with debt reveals a full-size trash overlay button.
- *   - Clicking the trash clears that category’s debt for the open pair.
- *   - Clicking the thumbnail again toggles it off.
- *   - NEW (Update): Clicking anywhere else in the debt sheet (outside any debt thumbnail or its trash button)
- *     automatically hides any active trash overlay.
+ * Summary of Major Features & Recent Changes
+ * ----------------------------------------------------------
+ * - Dynamic debt adjustment buttons (NONE / OWE / COLLECT states)
+ * - Outstanding debt category quick-clear via thumbnail trash
+ * - Inactive player cards show passive debt summary (live updating)
+ * - Active + passive debt summary bars live update on any change
+ * - Endgame tax calculation with tie‑breaker logic
+ * - Trash overlay hides on outside click / Escape
+ * - Debt sheet navigation & per-category normalization
+ * - Timer shared between main view & debt sheet
+ * - (2025-09-27) Active card debt summary bar moved above "Normal Cards Donated"
+ * - (2025-09-27) Live updating of passive debt summaries
+ * - (2025-09-27) Clickable Tax Breaks Badge Tooltip (active card only)
+ * - (2025-09-27 LATE PATCH) Unified interactive tooltip system:
+ *      * Tax Breaks badge & Normal Cards info icon now share identical styling & behavior.
+ *      * Click / Enter / Space toggles; outside click / Escape closes.
+ *      * Smart positioning prevents clipping (horizontal shift + vertical flip).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -178,9 +165,17 @@ function computeDonationVisuals(){
   const breaksPreview=(p.streaks||0)+(p.powerCards||0)+powerDonated+streaksThisTurn;
   return { blocks, breaksPreview };
 }
-function buildTaxBreaksBadge(value){
+
+/**
+ * Build the Tax Breaks badge.
+ * For active card we pass interactive=true to allow tooltip activation.
+ */
+function buildTaxBreaksBadge(value, interactive=false){
+  const interactiveAttrs = interactive
+    ? `data-interactive="1" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false"`
+    : '';
   return `
-    <div class="tax-breaks-badge inline" id="taxBreaksBadge" aria-label="Tax Breaks Earned">
+    <div class="tax-breaks-badge inline${interactive?' has-tooltip':''}" id="taxBreaksBadge" ${interactiveAttrs} aria-label="Tax Breaks Earned">
       <svg viewBox="0 0 100 100" class="tb-svg" role="img" focusable="false">
         <defs><path id="tbCirclePath" d="M50,10 a40,40 0 1,1 -0.01,0" /></defs>
         <text class="tb-text">
@@ -190,15 +185,33 @@ function buildTaxBreaksBadge(value){
         </text>
       </svg>
       <div class="tb-value" id="taxBreaksValue">${value}</div>
+      ${
+        interactive
+          ? `<div class="tb-tooltip" role="tooltip" id="taxBreaksTooltip" aria-hidden="true">
+               Total Tax Breaks Earned.<br>
+               This lowers your taxes owed at the end of the game.
+             </div>`
+          : ''
+      }
     </div>`;
 }
-function buildDebtSummaryBar(){
-  const { owe, collect } = aggregateTotals(currentPlayerIndex);
-  return `
-    <div class="debt-summary-bar" id="debtSummaryBar" role="button" tabindex="0" aria-label="View & adjust detailed debts">
-      <span class="ds-owe">You Owe: ${owe}</span>
-      <span class="ds-collect">You Collect: ${collect}</span>
-    </div>`;
+
+/* ---------- Debt Summary Bars ---------- */
+function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true } = {}){
+  const { owe, collect } = aggregateTotals(idx);
+  if(interactive){
+    return `
+      <div class="debt-summary-bar" id="debtSummaryBar" role="button" tabindex="0" aria-label="View & adjust detailed debts">
+        <span class="ds-owe">You Owe: ${owe}</span>
+        <span class="ds-collect">You Collect: ${collect}</span>
+      </div>`;
+  } else {
+    return `
+      <div class="debt-summary-bar passive" aria-label="Outstanding debts summary (view only)">
+        <span class="ds-owe">You Owe: ${owe}</span>
+        <span class="ds-collect">You Collect: ${collect}</span>
+      </div>`;
+  }
 }
 
 /* ---------- Player card sections ---------- */
@@ -210,15 +223,17 @@ function buildInactiveNormalProgress(p){
   }
   return `<div class="normal-cards-container inactive-progress">${blocks}</div>`;
 }
-function buildInactiveCardSection(p){
+function buildInactiveCardSection(p, index){
   const breaksTotal = (p.streaks||0) + (p.powerCards||0);
+  const debtBar = buildDebtSummaryBar(index,{interactive:false});
   return `
     <div class="donation-section inactive">
       <div class="turn-header">
-        ${buildTaxBreaksBadge(breaksTotal)}
+        ${buildTaxBreaksBadge(breaksTotal,false)}
         <h3 class="turn-player-name">${p.name}</h3>
         <div class="turn-player-timer placeholder">00</div>
       </div>
+      ${debtBar}
       <div class="inactive-progress-label">Normal Cards Progress</div>
       <div class="donate-row static-row">
         ${buildInactiveNormalProgress(p)}
@@ -231,13 +246,22 @@ function buildActiveCardSection(p){
   return `
     <div class="donation-section">
       <div class="turn-header">
-        ${buildTaxBreaksBadge(breaksPreview)}
+        ${buildTaxBreaksBadge(breaksPreview,true)}
         <h3 class="turn-player-name">${p.name}</h3>
         <div class="turn-player-timer" id="playerTimer">${timeLeft}</div>
       </div>
+      ${buildDebtSummaryBar(currentPlayerIndex,{interactive:true})}
       <div class="donate-label-inline">
         Normal Cards Donated
-        <span class="info-icon" tabindex="0" data-tooltip="Each streak (5 cards) = 1 Tax Break">ⓘ</span>
+        <span class="info-icon has-tooltip" id="normalCardsInfo"
+              data-interactive="1" tabindex="0" role="button"
+              aria-haspopup="dialog" aria-expanded="false"
+              aria-label="Normal Cards Donation Info">
+          ⓘ
+          <div class="tb-tooltip" role="tooltip" aria-hidden="true">
+            Each streak (5 cards) = 1 Tax Break
+          </div>
+        </span>
       </div>
       <div class="donate-row buttons-row">
         <button type="button" id="minusNormal" class="btn-round alt" aria-label="Decrease normal donations">-</button>
@@ -252,7 +276,6 @@ function buildActiveCardSection(p){
         </div>
         <button type="button" id="plusPower" class="btn-round" aria-label="Increase power donations">+</button>
       </div>
-      ${buildDebtSummaryBar()}
       <div class="donation-actions" id="donationActionButtons" style="display:flex;justify-content:center;margin-top:.2rem;">
         <button type="button" id="tookCharityBtn" class="donation-btn" data-variant="secondary" aria-pressed="false">Took from Charity</button>
       </div>
@@ -326,6 +349,7 @@ function applyActiveToCard(cardElem, playerIndex){
   bindTimerClick();
   attachDebtBarHandler();
   bindDonationControls();
+  initInteractiveTooltips(); // unified tooltip setup
   updateDonationButtonsState();
   refreshOverviewOnly();
   resetDonationTimer();
@@ -335,7 +359,7 @@ function applyActiveToCard(cardElem, playerIndex){
 function applyInactiveToCard(cardElem, playerIndex){
   cardElem.classList.remove('active');
   const inner=cardElem.querySelector('.player-card-inner');
-  if(inner) inner.innerHTML = buildInactiveCardSection(players[playerIndex]);
+  if(inner) inner.innerHTML = buildInactiveCardSection(players[playerIndex], playerIndex);
 }
 function switchToIndex(nextIndex, center=false){
   if(nextIndex===currentPlayerIndex) return;
@@ -415,6 +439,129 @@ function updateDonationDynamic(){
   refreshOverviewOnly();
 }
 
+/* ---------- Unified Tooltip System (Tax Breaks + Info Icon) ---------- */
+function positionTooltip(trigger, tooltip){
+  if(!trigger || !tooltip) return;
+  tooltip.classList.remove('flip');
+  tooltip.style.left='50%';
+  tooltip.style.top='100%';
+  tooltip.style.bottom='auto';
+  tooltip.style.transform='translate(-50%,4px)';
+
+  requestAnimationFrame(()=>{
+    const margin=8;
+    const tRect=trigger.getBoundingClientRect();
+    const ttRect=tooltip.getBoundingClientRect();
+
+    let shift=0;
+    if(ttRect.left < margin) shift = margin - ttRect.left;
+    else if(ttRect.right > window.innerWidth - margin) shift = (window.innerWidth - margin) - ttRect.right;
+
+    const spaceBelow = window.innerHeight - tRect.bottom;
+    const needed = ttRect.height + 18;
+    let flipped=false;
+    if(spaceBelow < needed){
+      tooltip.classList.add('flip');
+      tooltip.style.top='auto';
+      tooltip.style.bottom='100%';
+      flipped=true;
+    }
+
+    const ttRect2=tooltip.getBoundingClientRect();
+    if(flipped && ttRect2.top < margin){
+      tooltip.classList.remove('flip');
+      tooltip.style.top='100%';
+      tooltip.style.bottom='auto';
+    }
+
+    if(shift!==0){
+      const baseTranslate = tooltip.classList.contains('flip')
+        ? 'translate(-50%,-10px)'
+        : 'translate(-50%,4px)';
+      tooltip.style.transform = baseTranslate.replace('-50%', `calc(-50% + ${shift}px)`);
+    } else {
+      tooltip.style.transform = tooltip.classList.contains('flip')
+        ? 'translate(-50%,-10px)'
+        : 'translate(-50%,4px)';
+    }
+  });
+}
+
+function initInteractiveTooltips(){
+  document.querySelectorAll('.tb-open').forEach(el=>{
+    el.classList.remove('tb-open');
+    el.setAttribute('aria-expanded','false');
+    const tt=el.querySelector('.tb-tooltip');
+    if(tt) tt.setAttribute('aria-hidden','true');
+  });
+
+  const activeScope = document.querySelector('.player-card.active');
+  if(!activeScope) return;
+
+  const triggers = activeScope.querySelectorAll('[data-interactive="1"].has-tooltip');
+
+  let openTrigger = null;
+
+  function close(trigger){
+    if(!trigger) return;
+    trigger.classList.remove('tb-open');
+    trigger.setAttribute('aria-expanded','false');
+    const t=trigger.querySelector('.tb-tooltip');
+    if(t){
+      t.setAttribute('aria-hidden','true');
+    }
+    if(openTrigger===trigger) openTrigger=null;
+  }
+  function open(trigger){
+    if(openTrigger && openTrigger!==trigger) close(openTrigger);
+    const t=trigger.querySelector('.tb-tooltip');
+    if(!t) return;
+    trigger.classList.add('tb-open');
+    trigger.setAttribute('aria-expanded','true');
+    t.setAttribute('aria-hidden','false');
+    positionTooltip(trigger,t);
+    openTrigger=trigger;
+  }
+  function toggle(trigger){
+    if(trigger.classList.contains('tb-open')) close(trigger); else open(trigger);
+  }
+
+  triggers.forEach(tr=>{
+    tr.addEventListener('click', e=>{
+      e.stopPropagation();
+      toggle(tr);
+    });
+    tr.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' '){
+        e.preventDefault();
+        toggle(tr);
+      } else if(e.key==='Escape'){
+        close(tr);
+      }
+    });
+  });
+
+  function outsideHandler(e){
+    if(openTrigger && !openTrigger.contains(e.target)){
+      close(openTrigger);
+    }
+  }
+  function escHandler(e){
+    if(e.key==='Escape' && openTrigger){
+      close(openTrigger);
+    }
+  }
+  document.addEventListener('click', outsideHandler, { capture:true });
+  document.addEventListener('keydown', escHandler);
+
+  window.addEventListener('resize', ()=>{
+    if(openTrigger){
+      const t=openTrigger.querySelector('.tb-tooltip');
+      if(t) positionTooltip(openTrigger,t);
+    }
+  }, { passive:true });
+}
+
 /* ---------- Render cards ---------- */
 function showPlayerCards(){
   ensureSheetElements();
@@ -422,7 +569,7 @@ function showPlayerCards(){
   let html='';
   for(let i=0;i<players.length;i++){
     const p=players[i];
-    const section = i===currentPlayerIndex ? buildActiveCardSection(p) : buildInactiveCardSection(p);
+    const section = i===currentPlayerIndex ? buildActiveCardSection(p) : buildInactiveCardSection(p,i);
     html+=`
       <div class="player-card${i===currentPlayerIndex?' active':''}" data-index="${i}">
         <div class="player-card-inner">${section}</div>
@@ -445,6 +592,7 @@ function showPlayerCards(){
   bindTimerClick();
   attachDebtBarHandler();
   bindDonationControls();
+  initInteractiveTooltips();
   updateDonationButtonsState();
   refreshOverviewOnly();
   resetDonationTimer();
@@ -492,15 +640,30 @@ function setupCardScrollSync(){
   },0);
 }
 
-/* ---------- Debt summary refresh ---------- */
+/* ---------- Debt summary refresh (ACTIVE + PASSIVE LIVE UPDATE) ---------- */
 function refreshOverviewOnly(){
   const bar=document.getElementById('debtSummaryBar');
-  if(!bar) return;
-  const { owe, collect } = aggregateTotals(currentPlayerIndex);
-  const oweSpan=bar.querySelector('.ds-owe');
-  const collectSpan=bar.querySelector('.ds-collect');
-  if(oweSpan) oweSpan.textContent=`You Owe: ${owe}`;
-  if(collectSpan) collectSpan.textContent=`You Collect: ${collect}`;
+  if(bar){
+    const { owe, collect } = aggregateTotals(currentPlayerIndex);
+    const oweSpan=bar.querySelector('.ds-owe');
+    const collectSpan=bar.querySelector('.ds-collect');
+    if(oweSpan) oweSpan.textContent=`You Owe: ${owe}`;
+    if(collectSpan) collectSpan.textContent=`You Collect: ${collect}`;
+  }
+
+  document.querySelectorAll('.player-card').forEach(card=>{
+    const idx = parseInt(card.dataset.index,10);
+    if(isNaN(idx)) return;
+    if(idx === currentPlayerIndex) return;
+    const passiveBar = card.querySelector('.debt-summary-bar.passive');
+    if(passiveBar){
+      const { owe, collect } = aggregateTotals(idx);
+      const oweSpan = passiveBar.querySelector('.ds-owe');
+      const collectSpan = passiveBar.querySelector('.ds-collect');
+      if(oweSpan) oweSpan.textContent=`You Owe: ${owe}`;
+      if(collectSpan) collectSpan.textContent=`You Collect: ${collect}`;
+    }
+  });
 }
 
 /* ---------- Debt sheet ---------- */
@@ -529,6 +692,7 @@ function openDebtSheet(otherIdx){
   requestAnimationFrame(()=>sheet.classList.add('open'));
   attachDebtSheetEvents(otherIdx);
   updateTimerDisplays(); bindTimerClick();
+  refreshOverviewOnly();
 }
 function closeDebtSheet(){
   const overlay=document.getElementById('debtSheetOverlay');
@@ -558,13 +722,13 @@ function renderDebtSheet(otherIdx){
           <div class="debt-cat-thumb" data-cat-thumb="${cat}" data-cat="${cat}" data-hasdebt="${hasDebt?'1':'0'}">
             <img class="debt-cat-icon" src="${getImageName(cat)}" alt="${cat}">
           </div>
-          <div class="debt-cat-info">
-            <div class="debt-cat-name">${cat}</div>
-            <div class="debt-cat-stats">
-              <span data-dir="${cat}" class="pill pill-status ${status}">${label}</span>
-              <span data-amt="${cat}" class="pill pill-amt ${status}">${amount}</span>
+            <div class="debt-cat-info">
+              <div class="debt-cat-name">${cat}</div>
+              <div class="debt-cat-stats">
+                <span data-dir="${cat}" class="pill pill-status ${status}">${label}</span>
+                <span data-amt="${cat}" class="pill pill-amt ${status}">${amount}</span>
+              </div>
             </div>
-          </div>
           <div class="debt-cat-adjust" data-adjust="${cat}">
             <button type="button" class="debt-adjust-dyn-btn" data-btn="left" data-cat="${cat}" aria-label="Adjust ${cat} left"></button>
             <button type="button" class="debt-adjust-dyn-btn" data-btn="right" data-cat="${cat}" aria-label="Adjust ${cat} right"></button>
@@ -698,7 +862,6 @@ function refreshCategoryRow(cat){
   amtEl.className=`pill pill-amt ${status}`;
   amtEl.textContent=amount;
 
-  // Update thumbnail debt state
   const thumb = row.querySelector(`.debt-cat-thumb[data-cat="${cat}"]`);
   if(thumb){
     thumb.dataset.hasdebt = amount>0 ? '1':'0';
@@ -750,14 +913,12 @@ function handleDebtAdjustClick(e){
   const withinThumb = e.target.closest('.debt-cat-thumb');
   const withinTrash = e.target.closest('.debt-cat-trash-btn');
 
-  // If clicking outside any thumb/trash and a trash overlay is active, hide all first
   if(!withinThumb && !withinTrash){
     if(sheet.querySelector('.debt-cat-thumb.show-trash')){
       hideAllTrashOverlays();
     }
   }
 
-  /* Thumbnail & trash interactions */
   const trashBtn = e.target.closest('.debt-cat-trash-btn');
   if(trashBtn){
     const thumb = trashBtn.parentElement;
@@ -772,7 +933,6 @@ function handleDebtAdjustClick(e){
         refreshOverviewOnly();
       }
     }
-    // After clearing, hide overlays
     hideAllTrashOverlays();
     return;
   }
@@ -781,20 +941,18 @@ function handleDebtAdjustClick(e){
   if(thumb && sheet.contains(thumb)){
     if(thumb.dataset.hasdebt==='1'){
       if(thumb.classList.contains('show-trash')){
-        // hide this overlay
         thumb.classList.remove('show-trash');
         const btn=thumb.querySelector('.debt-cat-trash-btn');
         if(btn) btn.remove();
       } else {
-        // hide others then show this
         hideAllTrashOverlays();
         if(!thumb.querySelector('.debt-cat-trash-btn')){
           const btn=document.createElement('button');
-          btn.type='button';
-          btn.className='debt-cat-trash-btn';
-          btn.setAttribute('aria-label','Clear this category debt');
-          btn.innerHTML='🗑️';
-          thumb.appendChild(btn);
+            btn.type='button';
+            btn.className='debt-cat-trash-btn';
+            btn.setAttribute('aria-label','Clear this category debt');
+            btn.innerHTML='🗑️';
+            thumb.appendChild(btn);
         }
         thumb.classList.add('show-trash');
       }
@@ -802,7 +960,6 @@ function handleDebtAdjustClick(e){
     return;
   }
 
-  /* Adjust buttons */
   const btn = e.target.closest('.debt-adjust-dyn-btn');
   if(!btn) return;
   if(!sheet || !sheet.contains(btn)) return;
@@ -873,7 +1030,6 @@ function attachDebtSheetEvents(otherIdx){
   if(prev) prev.onclick=()=>navigateDebtPlayer(-1);
   if(next) next.onclick=()=>navigateDebtPlayer(1);
 
-  // swipe support
   let startX=0,startY=0,active=false;
   const start=(x,y)=>{ startX=x; startY=y; active=true; };
   const end=(x,y)=>{
@@ -905,7 +1061,6 @@ function debtSheetKeyHandler(e){
   if(e.key==='ArrowLeft') navigateDebtPlayer(-1);
   else if(e.key==='ArrowRight') navigateDebtPlayer(1);
   else if(e.key==='Escape'){
-    // Hide trash overlays first; if none, then close sheet
     const sheet=document.getElementById('debtSheet');
     if(sheet && sheet.querySelector('.debt-cat-thumb.show-trash')){
       hideAllTrashOverlays();
@@ -926,6 +1081,7 @@ function navigateDebtPlayer(offset){
     sheet.innerHTML=renderDebtSheet(openDebtPlayerIndex);
     attachDebtSheetEvents(openDebtPlayerIndex);
     updateTimerDisplays();
+    refreshOverviewOnly();
   }
 }
 
@@ -1000,6 +1156,7 @@ function rebuildDebtSheet(otherIdx){
     sheet.innerHTML=renderDebtSheet(otherIdx);
     attachDebtSheetEvents(otherIdx);
     updateTimerDisplays();
+    refreshOverviewOnly();
   }
 }
 
@@ -1156,7 +1313,7 @@ function loadEndgame(){
       if(el){
         el.addEventListener('input',()=>{
           const pos=el.selectionStart;
-            el.value=el.value.replace(/\D+/g,'');
+          el.value=el.value.replace(/\D+/g,'');
           try{ el.setSelectionRange(pos,pos);}catch(e){}
         });
       }
@@ -1272,6 +1429,11 @@ function calculateFinalTaxes(){
     : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
+  sorted.forEach((p)=>{
+    const net=p.coins-p.tax;
+    theEff=p.coins?Math.round((p.tax/p.coins)*100):0; // NOTE: corrected variable name next line.
+  });
+  cards=''; // Clear any earlier accidental partial build (reset)
   sorted.forEach((p)=>{
     const net=p.coins-p.tax;
     const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
