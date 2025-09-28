@@ -15,16 +15,16 @@
  * - (2025-09-27) Active card debt summary bar moved above "Normal Cards Donated"
  * - (2025-09-27) Live updating of passive debt summaries
  * - (2025-09-27) Clickable Tax Breaks Badge Tooltip (active card only)
- * - (2025-09-27 LATE PATCH) Unified interactive tooltip system:
- *      * Tax Breaks badge & Normal Cards info icon now share identical styling & behavior.
- *      * Click / Enter / Space toggles; outside click / Escape closes.
- *      * Smart positioning prevents clipping (horizontal shift + vertical flip).
+ * - (2025-09-27 LATE PATCH) Unified interactive tooltip system
  * - (2025-09-28) Setup player cap: Max 7 players. Add Player button greys out at 7
- *                and still produces an OK-only popup if clicked beyond limit.
+ * - (2025-09-28 LATE) Endgame caps: Total Haggleoffs ≤ 100; Total Properties ≤ Property Stack + Players.
+ * - (2025-09-28 LATE2) Endgame entry: free typing (no live clamp). Clamp only after pause (debounce) or blur.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
 const MAX_PLAYERS = 7;
+/* Endgame aggregate caps */
+const MAX_TOTAL_COINS = 100; // Total Haggleoffs cap across all players
 
 let players = [];
 let currentPlayerIndex = 0;
@@ -1289,16 +1289,98 @@ function showOutstandingDebtsPopup(data){
   proceed.onclick=()=>{ overlay.style.display='none'; loadEndgame(); };
   cancel.onclick=()=>{ overlay.style.display='none'; };
 }
+
+/* ---------- Endgame Input Cap Helpers (DEBOUNCED) ---------- */
+/* Property stack size during setup referenced: players.length + 1 (center stack).
+   Cap rule: Combined total properties ≤ (Property Stack Size + Number of Players)
+             => (players.length + 1) + players.length = 2*players.length + 1 */
+function getPropertyCap(){
+  return (players.length + 1) + players.length; // 2n + 1
+}
+
+/* Timers for debounce clamping */
+let coinsClampTimers = [];
+let propsClampTimers = [];
+const CLAMP_DELAY = 800; // ms after last keystroke
+
+function clampCoins(index){
+  const changed = document.getElementById(`coins_${index}`);
+  if(!changed) return;
+  let raw = changed.value.trim();
+  if(raw===''){ return; } // allow empty until blur -> then treat as 0
+  let val = parseInt(raw,10);
+  if(isNaN(val) || val<0) val=0;
+
+  // Sum others (treat empty/invalid as 0)
+  let sumOthers=0;
+  for(let i=0;i<players.length;i++){
+    if(i===index) continue;
+    const el=document.getElementById(`coins_${i}`);
+    if(!el) continue;
+    let v=parseInt(el.value,10);
+    if(isNaN(v)||v<0) v=0;
+    sumOthers+=v;
+  }
+  const remaining = MAX_TOTAL_COINS - sumOthers;
+  if(remaining<=0){
+    val=0; // others already consume or exceed cap
+  } else if(val>remaining){
+    val=remaining;
+  }
+  changed.value=String(val);
+}
+
+function clampProperties(index){
+  const cap = getPropertyCap();
+  const changed=document.getElementById(`props_${index}`);
+  if(!changed) return;
+  let raw=changed.value.trim();
+  if(raw===''){ return; } // allow empty until blur
+  let val=parseInt(raw,10);
+  if(isNaN(val)) val=0;
+
+  // Sum others (treat each min 1 during cap calculation because min property per player is 1)
+  let sumOthers=0;
+  for(let i=0;i<players.length;i++){
+    if(i===index) continue;
+    const el=document.getElementById(`props_${i}`);
+    if(!el) continue;
+    let v=parseInt(el.value,10);
+    if(isNaN(v)||v<1) v=1;
+    sumOthers+=v;
+  }
+  // Enforce min 1 on current after cap logic
+  let remaining = cap - sumOthers;
+  if(remaining < 1){
+    // No space left but must keep at least 1; overshoot may persist until others edited.
+    val = 1;
+  } else {
+    if(val < 1) val = 1;
+    if(val > remaining) val = remaining;
+  }
+  changed.value=String(val);
+}
+
+function scheduleClampCoins(i){
+  if(coinsClampTimers[i]) clearTimeout(coinsClampTimers[i]);
+  coinsClampTimers[i]=setTimeout(()=>clampCoins(i), CLAMP_DELAY);
+}
+function scheduleClampProps(i){
+  if(propsClampTimers[i]) clearTimeout(propsClampTimers[i]);
+  propsClampTimers[i]=setTimeout(()=>clampProperties(i), CLAMP_DELAY);
+}
+
 function loadEndgame(){
   if(timerInterval) clearInterval(timerInterval);
   timerRunningState=false;
+  coinsClampTimers=[]; propsClampTimers=[];
   const cards=players.map((p,i)=>`
     <div class="endgame-card" style="background:#303030;border:2px solid #3a3a3a;border-radius:14px;padding:0.85rem 0.7rem;min-width:240px;">
       <div class="final-result-card-inner">
         <div class="final-result-name player-name" style="margin-bottom:0.55rem;">${p.name}</div>
         <div style="display:flex;flex-direction:column;gap:0.6rem;">
           <input type="text" inputmode="numeric" pattern="[0-9]*" id="coins_${i}" placeholder="Haggleoffs" aria-label="${p.name} Haggleoffs">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" id="props_${i}" placeholder="Properties" aria-label="${p.name} Properties">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="props_${i}" placeholder="Properties (min 1)" aria-label="${p.name} Properties">
         </div>
       </div>
     </div>`).join('');
@@ -1310,19 +1392,33 @@ function loadEndgame(){
       <button type="button" class="styled-btn" onclick="calculateFinalTaxes()">Calculate Taxes</button>
       <div id="finalSummary" style="display:none;"></div>
     </div>`;
+
+  /* Input: allow free typing, only sanitize digits. Clamp AFTER pause or blur. */
   players.forEach((_,i)=>{
-    ['coins','props'].forEach(f=>{
-      const el=document.getElementById(`${f}_${i}`);
-      if(el){
-        el.addEventListener('input',()=>{
-          const pos=el.selectionStart;
-          el.value=el.value.replace(/\D+/g,'');
-          try{ el.setSelectionRange(pos,pos);}catch(e){}
-        });
-      }
-    });
+    const coinsEl=document.getElementById(`coins_${i}`);
+    const propsEl=document.getElementById(`props_${i}`);
+
+    if(coinsEl){
+      coinsEl.addEventListener('input',()=>{
+        const pos=coinsEl.selectionStart;
+        coinsEl.value=coinsEl.value.replace(/\D+/g,'');
+        try{ coinsEl.setSelectionRange(pos,pos);}catch(e){}
+        scheduleClampCoins(i);
+      });
+      coinsEl.addEventListener('blur',()=>clampCoins(i));
+    }
+    if(propsEl){
+      propsEl.addEventListener('input',()=>{
+        const pos=propsEl.selectionStart;
+        propsEl.value=propsEl.value.replace(/\D+/g,'');
+        try{ propsEl.setSelectionRange(pos,pos);}catch(e){}
+        scheduleClampProps(i);
+      });
+      propsEl.addEventListener('blur',()=>clampProperties(i));
+    }
   });
 }
+
 function getTaxBracketMessage(coins,props){
   if(coins<=6 && props>3) return "Broke on paper, rich in acres.";
   if(coins<=6) return "Enjoy tax-free poverty.";
@@ -1355,10 +1451,33 @@ function calculateFinalTaxes(){
     }
   }
 
+  /* Additional hard validation for caps (in case user avoided blur/debounce timing) */
+  const totalCoins = players.reduce((s,_,i)=>{
+    const el=document.getElementById(`coins_${i}`);
+    return s + (el && /^\d+$/.test(el.value)? parseInt(el.value,10):0);
+  },0);
+  if(totalCoins > MAX_TOTAL_COINS){
+    customPopup(`Total Haggleoffs cannot exceed ${MAX_TOTAL_COINS}.`);
+    return;
+  }
+
+  const propCap = getPropertyCap();
+  const totalProps = players.reduce((s,_,i)=>{
+    const el=document.getElementById(`props_${i}`);
+    let v = el && /^\d+$/.test(el.value)? parseInt(el.value,10):0;
+    if(v < 1) v = 1;
+    return s + v;
+  },0);
+  if(totalProps > propCap){
+    customPopup(`Total Properties cannot exceed ${propCap} (Property Stack + Players).`);
+    return;
+  }
+
   players.forEach((pl,i)=>{
     const coins=+document.getElementById(`coins_${i}`).value.trim();
-    const props=+document.getElementById(`props_${i}`).value.trim();
-    pl.coins=coins; pl.properties=Math.max(1,props);
+    const propsRaw=+document.getElementById(`props_${i}`).value.trim();
+    const props = Math.max(1, propsRaw);
+    pl.coins=coins; pl.properties=props;
 
     const bracketTax=coins<=6?0: coins<=14?3: coins<=24?5: coins<=39?8:10;
     const propertyTax=coins>6? pl.properties*(pl.properties>=4?2:1):0;
