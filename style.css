@@ -13,6 +13,8 @@
    - Info icon now click / keyboard toggle (no pure hover), same visual style as tax breaks tooltip.
    - Outside click / Escape closes any open tooltip.
    - Tooltip smart positioning + flip above if near viewport bottom; horizontal shift to avoid clipping.
+   UPDATED (2025-09-28):
+   - Added .add-player-maxed state styling for disabled visual at 7-player cap (still clickable for popup).
    ========================================================= */
 
 :root {
@@ -151,6 +153,14 @@ button,
 }
 .btn-round.alt { background:var(--color-accent-alt); color:#fff; }
 .btn-round.alt:active { background:var(--color-accent-alt-dark); }
+
+/* Add Player maxed state (visual grey-out but still clickable for popup) */
+#addPlayerBtn.add-player-maxed {
+  opacity:0.45;
+  filter:grayscale(.35) brightness(.9);
+  cursor:not-allowed;
+}
+#addPlayerBtn.add-player-maxed:active { transform:none; }
 
 /* Setup */
 .setup-actions { display:flex; gap:0.7rem; flex-wrap:wrap; justify-content:center; margin-top:0.9rem; }
@@ -523,7 +533,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:-2px -2px 3px #0006;
   z-index:-1;
 }
-/* Flip (appears above trigger) */
 .tb-tooltip.flip { top:auto; bottom:100%; }
 .tb-tooltip.flip::after {
   top:auto;
@@ -534,7 +543,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:2px 2px 3px #0006;
 }
 
-/* Open state for any interactive trigger */
+/* Open state */
 .tax-breaks-badge.inline.tb-open .tb-tooltip,
 .info-icon.tb-open .tb-tooltip {
   opacity:1;
@@ -546,7 +555,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .outstanding-wrapper { max-height:360px; overflow-y:auto; padding-right:0.35rem; }
 .debtor-block {
   background:#2a2a2a; border:2px solid #3a3a3a; border-radius:14px;
-  padding:.65rem .75rem .55rem; margin-bottom:.7rem; cursor:pointer;
+  padding:.65rem .75rem .55rem; margin-bottom:0.7rem; cursor:pointer;
   transition:border-color .25s, background .25s, box-shadow .25s;
   position:relative;
 }
@@ -561,7 +570,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .debtor-checkbox:checked { background:var(--color-accent); border-color:var(--color-accent); }
 .debtor-checkbox:checked::after {
-  content:"✓"; position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);
+  content:"✓"; position:absolute; top:50%; left:50%; transform:translate(-50%, -58%);
   font-size:14px; color:#232323; font-weight:bold;
 }
 
@@ -684,7 +693,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .debt-category-row:active { background:#373737; }
 
-/* Thumbnail wrapper + full-size trash overlay */
 .debt-cat-thumb {
   width:52px; height:52px;
   position:relative;
@@ -742,7 +750,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   background:linear-gradient(145deg,#7a3333,#4a1d1d);
 }
 
-/* Debt category info & pills */
 .debt-cat-info { display:flex; flex-direction:column; gap:0.35rem; font-family:var(--font-display); align-items:flex-start; }
 .debt-cat-name { font-size:1rem; letter-spacing:0.45px; color:var(--color-accent); margin:0; }
 .debt-cat-stats { font-size:1rem; display:flex; gap:0.6rem; align-items:center; }
@@ -778,7 +785,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .pill-amt.owe { background:#5a2525; border-color:#7a3333; color:#f9e3e3; }
 .pill-amt.collect { background:#1f5e30; border-color:#2f7d46; color:#e9ffe9; }
 
-/* Dynamic debt adjust buttons */
 .debt-cat-adjust { display:flex; flex-direction:row; gap:6px; align-items:center; justify-content:center; }
 .debt-adjust-dyn-btn {
   width:46px; height:46px;
@@ -798,7 +804,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .debt-adjust-dyn-btn:active { transform:translateY(1px); }
 
-/* Neutral (NONE) */
 .debt-adjust-init-owe {
   background:#5a2525;
   border-color:#7a3333;
@@ -812,7 +817,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   font-size:0;
 }
 
-/* OWE state */
 .debt-adjust-owe {
   background:#5a2525;
   border-color:#7a3333;
@@ -820,7 +824,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .debt-adjust-owe:active { background:#7a3333; }
 
-/* COLLECT state */
 .debt-adjust-collect {
   background:#1f5e30;
   border-color:#2f7d46;
@@ -828,7 +831,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .debt-adjust-collect:active { background:#2f7d46; }
 
-/* Inline confirm (debt sheet) */
 .debt-inline-confirm-backdrop {
   position:absolute;
   inset:0;
@@ -880,8 +882,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   flex-direction:column;
   gap:.55rem;
 }
-
-/* Base styling */
 .debt-inline-confirm .confirm-btns button {
   width:100%;
   font-size:.9rem;
@@ -898,8 +898,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 2px 6px #0006;
   border:2px solid transparent;
 }
-
-/* Confirm variants */
 .debt-inline-confirm .confirm-btns button[data-action="both"] {
   background:var(--color-accent);
   color:#232323;
@@ -926,7 +924,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   filter:brightness(.92);
 }
 
-/* Bottom summary & footer */
 .debt-pair-bottom-summary {
   padding:0.6rem 0.4rem 0.55rem;
   text-align:center;
@@ -1022,9 +1019,9 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 
 /* Reduced motion */
 @media (prefers-reduced-motion:reduce){
+  .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }
   * { transition:none !important; scroll-behavior:auto !important; }
-  .tax-breaks-badge .tb-svg { animation:none !important; }
 }
 
 /* Exit Screen */
@@ -1132,7 +1129,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .fr2-line .label { color:#e6e6e6; }
 .fr2-line .value { color:#d4af7f; font-weight:700; }
 
-/* AMT pill */
 .fr2-tax-line { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
 .fr2-amt-pill{
   background:#4e0c10;
@@ -1175,7 +1171,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .fr2-amt-pill[data-tip]:hover::after,
 .fr2-amt-pill[data-tip]:focus::after { opacity:1; transform:translate(-50%,0); }
 
-/* Quote & net share */
 .fr2-quote {
   color:#d4af7f; font-style:italic; font-family:var(--font-display);
   margin:.35rem 0 .5rem; text-shadow:0 0 6px #000a;
@@ -1188,13 +1183,11 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .fr2-more { display:block; text-align:center; color:#eaeaea; text-decoration:underline; font-style:italic; }
 .fr2-more:hover { color:#fff; }
 
-/* Small override */
 .turn-header .turn-player-name {
   font-family: var(--font-display) !important;
   font-weight: normal !important;
 }
 
-/* Disabled / greyed-out */
 .styled-btn:disabled,
 .donation-btn:disabled,
 .debt-footer-btn:disabled {
@@ -1204,7 +1197,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   pointer-events:none;
 }
 
-/* Disabled Outstanding Debts Proceed */
 #outstandingProceedBtn:disabled {
   background:#6c5a3e !important;
   color:#2a2a2a !important;
@@ -1215,7 +1207,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 #outstandingProceedBtn:disabled:focus { outline:none; }
 
-/* Reduced motion (extra) */
 @media (prefers-reduced-motion:reduce){
   .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }

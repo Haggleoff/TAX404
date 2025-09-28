@@ -19,9 +19,12 @@
  *      * Tax Breaks badge & Normal Cards info icon now share identical styling & behavior.
  *      * Click / Enter / Space toggles; outside click / Escape closes.
  *      * Smart positioning prevents clipping (horizontal shift + vertical flip).
+ * - (2025-09-28) Setup player cap: Max 7 players. Add Player button greys out at 7
+ *                and still produces an OK-only popup if clicked beyond limit.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
+const MAX_PLAYERS = 7;
 
 let players = [];
 let currentPlayerIndex = 0;
@@ -349,7 +352,7 @@ function applyActiveToCard(cardElem, playerIndex){
   bindTimerClick();
   attachDebtBarHandler();
   bindDonationControls();
-  initInteractiveTooltips(); // unified tooltip setup
+  initInteractiveTooltips();
   updateDonationButtonsState();
   refreshOverviewOnly();
   resetDonationTimer();
@@ -1431,9 +1434,9 @@ function calculateFinalTaxes(){
   let cards='';
   sorted.forEach((p)=>{
     const net=p.coins-p.tax;
-    theEff=p.coins?Math.round((p.tax/p.coins)*100):0; // NOTE: corrected variable name next line.
+    theEff=p.coins?Math.round((p.tax/p.coins)*100):0;
   });
-  cards=''; // Clear any earlier accidental partial build (reset)
+  cards='';
   sorted.forEach((p)=>{
     const net=p.coins-p.tax;
     const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
@@ -1603,6 +1606,7 @@ function restorePlayerNamesAndSetup(){
   fields.innerHTML='';
   const names=lastPlayerNames.length>=2? lastPlayerNames : ['Player 1','Player 2'];
   names.forEach((n,i)=>{
+    if(i>=MAX_PLAYERS) return;
     const input=document.createElement('input');
     input.type='text'; input.name='playerName'; input.maxLength=PLAYER_NAME_MAX;
     input.placeholder=`Player ${i+1}${i<2?' (required)':''}`;
@@ -1618,6 +1622,7 @@ function restorePlayerNamesAndSetup(){
   }
   setupBox.style.display='block';
   document.getElementById('mainGameContainer').innerHTML='';
+  updateAddPlayerButtonAppearance();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1679,6 +1684,10 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   }
   names=names.filter(Boolean);
   if(names.length<2){ customPopup("At least two players required."); return; }
+  if(names.length>MAX_PLAYERS){
+    customPopup(`Maximum ${MAX_PLAYERS} players allowed.`);
+    return;
+  }
   players=names.map(n=>({ name:n, streaks:0, powerCards:0, progress:0, coins:0, properties:0, tax:0 }));
   disallowedNormalCards=Array(players.length).fill(0);
   debts=Array(players.length).fill(null).map(()=>Array(players.length).fill(null).map(()=>{
@@ -1692,20 +1701,40 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   customPopup(msg, ()=>showPlayerCards(), true,"Yes","No", true);
 });
 
-/* ---------- Add Player helper ---------- */
+/* ---------- Add Player helper (with max cap & grey-out) ---------- */
+function updateAddPlayerButtonAppearance(){
+  const btn=document.getElementById('addPlayerBtn');
+  if(!btn) return;
+  const count = document.querySelectorAll('#playerInputFields input[name="playerName"]').length;
+  if(count >= MAX_PLAYERS){
+    btn.classList.add('add-player-maxed');
+    btn.setAttribute('aria-disabled','true');
+  } else {
+    btn.classList.remove('add-player-maxed');
+    btn.removeAttribute('aria-disabled');
+  }
+}
+
 function addPlayerField(){
   const container = document.getElementById('playerInputFields');
   if(!container) return;
   const inputs = container.querySelectorAll('input[name="playerName"]');
+  if(inputs.length >= MAX_PLAYERS){
+    customPopup("Haggleoff's legal limit is 7 players. Unless y'all are planning to unionize.", null, false, "", "", true);
+    updateAddPlayerButtonAppearance();
+    return;
+  }
   const nextIndex = inputs.length + 1;
   const input=document.createElement('input');
   input.type='text';
   input.name='playerName';
   input.maxLength=PLAYER_NAME_MAX;
+  const required = nextIndex <= 2;
   input.placeholder = nextIndex <= 2 ? `Player ${nextIndex} (required)` : `Player ${nextIndex} (optional)`;
-  input.required = nextIndex <= 2;
+  input.required = required;
   container.appendChild(input);
   input.focus({preventScroll:false});
+  updateAddPlayerButtonAppearance();
 }
 if(typeof window!=='undefined') window.addPlayerField=addPlayerField;
 
@@ -1715,4 +1744,5 @@ window.dismissDisclaimer=function(){
   document.getElementById('playerSetupBox').style.display='block';
   ensurePopupElements();
   ensureSheetElements();
+  updateAddPlayerButtonAppearance();
 };
