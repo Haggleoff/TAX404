@@ -15,6 +15,8 @@
    - Tooltip smart positioning + flip above if near viewport bottom; horizontal shift to avoid clipping.
    UPDATED (2025-09-28):
    - Added .add-player-maxed state styling for disabled visual at 7-player cap (still clickable for popup).
+   UPDATED (2025-09-29):
+   - Added Landlord winner styling (tie resolved by properties) with teal theme.
    ========================================================= */
 
 :root {
@@ -1055,6 +1057,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   color:#fff;
   box-shadow:0 10px 38px #0008, 0 0 0 2px #93adeb inset;
 }
+/* Landlord ribbon (tie resolved via properties) */
+.fr2-ribbon.landlord {
+  background:linear-gradient(135deg,#24c2a8,#15876f);
+  color:#e9fffa;
+  box-shadow:0 10px 38px #0008, 0 0 0 2px #67e3cf inset;
+}
 .fr2-ribbon .emoji { font-size:1.15rem; line-height:1; }
 
 .fr2-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1rem; }
@@ -1068,6 +1076,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .fr2-card.winner { border-color:#d4af7f; box-shadow:0 0 0 2px #d4af7f55, 0 12px 32px #000c; }
 .fr2-card.shareholder { border-color:#7c96d9; box-shadow:0 0 0 2px #7c96d955, 0 12px 32px #000c; }
+/* Landlord card */
+.fr2-card.landlord { border-color:#24c2a8; box-shadow:0 0 0 2px #24c2a855, 0 12px 32px #000c; }
 
 .fr2-badge {
   position:absolute; top:-14px; left:50%; transform:translateX(-50%);
@@ -1083,6 +1093,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   background:#2a2f3d;
   color:#dbe5fb;
   border-color:#7c96d9;
+}
+/* Landlord badge */
+.fr2-card.landlord .fr2-badge {
+  background:#1a3430;
+  color:#b8fff1;
+  border-color:#24c2a8;
 }
 
 .fr2-name {

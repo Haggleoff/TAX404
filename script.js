@@ -19,6 +19,8 @@
  * - (2025-09-28) Setup player cap: Max 7 players. Add Player button greys out at 7
  * - (2025-09-28 LATE) Endgame caps: Total Haggleoffs ≤ 100; Total Properties ≤ Property Stack + Players.
  * - (2025-09-28 LATE2) Endgame entry: free typing (no live clamp). Clamp only after pause (debounce) or blur.
+ * - (2025-09-29) Landlord designation: when a net-income tie is resolved solely by most properties,
+ *                the sole winner is titled "Landlord" with teal styling (see CSS .landlord classes).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -1291,9 +1293,6 @@ function showOutstandingDebtsPopup(data){
 }
 
 /* ---------- Endgame Input Cap Helpers (DEBOUNCED) ---------- */
-/* Property stack size during setup referenced: players.length + 1 (center stack).
-   Cap rule: Combined total properties ≤ (Property Stack Size + Number of Players)
-             => (players.length + 1) + players.length = 2*players.length + 1 */
 function getPropertyCap(){
   return (players.length + 1) + players.length; // 2n + 1
 }
@@ -1307,11 +1306,10 @@ function clampCoins(index){
   const changed = document.getElementById(`coins_${index}`);
   if(!changed) return;
   let raw = changed.value.trim();
-  if(raw===''){ return; } // allow empty until blur -> then treat as 0
+  if(raw===''){ return; } // allow empty until blur
   let val = parseInt(raw,10);
   if(isNaN(val) || val<0) val=0;
 
-  // Sum others (treat empty/invalid as 0)
   let sumOthers=0;
   for(let i=0;i<players.length;i++){
     if(i===index) continue;
@@ -1323,7 +1321,7 @@ function clampCoins(index){
   }
   const remaining = MAX_TOTAL_COINS - sumOthers;
   if(remaining<=0){
-    val=0; // others already consume or exceed cap
+    val=0;
   } else if(val>remaining){
     val=remaining;
   }
@@ -1335,11 +1333,10 @@ function clampProperties(index){
   const changed=document.getElementById(`props_${index}`);
   if(!changed) return;
   let raw=changed.value.trim();
-  if(raw===''){ return; } // allow empty until blur
+  if(raw===''){ return; }
   let val=parseInt(raw,10);
   if(isNaN(val)) val=0;
 
-  // Sum others (treat each min 1 during cap calculation because min property per player is 1)
   let sumOthers=0;
   for(let i=0;i<players.length;i++){
     if(i===index) continue;
@@ -1349,10 +1346,8 @@ function clampProperties(index){
     if(isNaN(v)||v<1) v=1;
     sumOthers+=v;
   }
-  // Enforce min 1 on current after cap logic
   let remaining = cap - sumOthers;
   if(remaining < 1){
-    // No space left but must keep at least 1; overshoot may persist until others edited.
     val = 1;
   } else {
     if(val < 1) val = 1;
@@ -1393,7 +1388,6 @@ function loadEndgame(){
       <div id="finalSummary" style="display:none;"></div>
     </div>`;
 
-  /* Input: allow free typing, only sanitize digits. Clamp AFTER pause or blur. */
   players.forEach((_,i)=>{
     const coinsEl=document.getElementById(`coins_${i}`);
     const propsEl=document.getElementById(`props_${i}`);
@@ -1451,7 +1445,6 @@ function calculateFinalTaxes(){
     }
   }
 
-  /* Additional hard validation for caps (in case user avoided blur/debounce timing) */
   const totalCoins = players.reduce((s,_,i)=>{
     const el=document.getElementById(`coins_${i}`);
     return s + (el && /^\d+$/.test(el.value)? parseInt(el.value,10):0);
@@ -1524,6 +1517,7 @@ function calculateFinalTaxes(){
   const maxNet=Math.max(...nets);
 
   const primaryCandidates = players.filter(p => (p.coins - p.tax) === maxNet);
+  const propTieBreakUsed = primaryCandidates.length > 1; // indicates a net-income tie existed
   let winners;
   if(primaryCandidates.length > 1){
     const maxPropsAmong = Math.max(...primaryCandidates.map(p=>p.properties));
@@ -1532,6 +1526,8 @@ function calculateFinalTaxes(){
   } else {
     winners = primaryCandidates;
   }
+
+  const landlordMode = propTieBreakUsed && winners.length === 1; // Landlord if tie resolved purely by property count
 
   totalAssetsForResults=players.reduce((s,p)=>s+p.coins+p.properties,0)||1;
   players.forEach(p=>{
@@ -1547,13 +1543,15 @@ function calculateFinalTaxes(){
   });
 
   const ribbon = winners.length===1
-    ? `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`
+    ? (landlordMode
+        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${winners[0].name} Landlord</span></div>`
+        : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`)
     : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
   sorted.forEach((p)=>{
     const net=p.coins-p.tax;
-    theEff=p.coins?Math.round((p.tax/p.coins)*100):0;
+    theEff=p.coins?Math.round((p.tax/p.coins)*100):0; // (unused variable kept from legacy)
   });
   cards='';
   sorted.forEach((p)=>{
@@ -1565,17 +1563,24 @@ function calculateFinalTaxes(){
     const isWinner=winners.includes(p);
     const tie=winners.length>1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
-    const winnerClass=isWinner?(tie?'shareholder':'winner'):'';
+
+    const winnerClass = isWinner
+      ? (landlordMode ? 'landlord' : (tie ? 'shareholder' : 'winner'))
+      : '';
+
+    const badgeLabel = isWinner
+      ? (landlordMode ? 'LANDLORD' : (tie ? 'SHAREHOLDER' : 'WINNER'))
+      : '';
 
     cards+=`
       <div class="fr2-card ${winnerClass}">
-        ${isWinner?`<div class="fr2-badge">${tie?'SHAREHOLDER':'WINNER'}</div>`:''}
+        ${isWinner?`<div class="fr2-badge">${badgeLabel}</div>`:''}
         <div class="fr2-name">${p.name}</div>
 
         <div class="fr2-pillrow">
           <span class="fr2-pill">Income <span class="num">${p.coins}</span></span>
           <span class="fr2-pill">Props <span class="num">${p.properties}</span></span>
-          <span class="fr2-pill">Rate <span class="num">${eff}%</span></span>
+            <span class="fr2-pill">Rate <span class="num">${eff}%</span></span>
         </div>
         <div class="fr2-pillrow">
           <span class="fr2-pill deductions">Deductions <span class="num">${breaks}</span></span>
@@ -1589,7 +1594,7 @@ function calculateFinalTaxes(){
             <span class="value">${p.tax}</span>
             ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" title="Alternative Minimum Tax triggered">AMT ${p.amtPercent}</span>` : ''}
           </div>
-            <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
+          <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
         </div>
 
@@ -1780,7 +1785,7 @@ function customPopup(message, callback, isHtml=false, yesText="Yes", noText="No"
   const no=document.getElementById('customPopupNo');
   msg.innerHTML=isHtml? message : message.replace(/\n/g,"<br>");
   overlay.style.display='flex';
-  if(typeof callback!=='function'){
+  if(typeof callback!== 'function'){
     yes.textContent='OK'; no.style.display='none';
     yes.onclick=()=>overlay.style.display='none';
   } else if(okOnly){
@@ -1815,7 +1820,7 @@ document.getElementById('playerForm')?.addEventListener('submit', e=>{
   lastPlayerNames=names.slice();
   document.getElementById('playerSetupBox').style.display='none';
   const msg=`<span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">Reloading resets your progress.</span><br><br>
-  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property during the game setup, place at the center of the table</span>
+  <span style="font-family:'Roboto';color:#f1f1f1;font-size:1rem;">After each player is dealt 1 free property during the game setup, place at the center of the table </span>
   <span style="color:#d4af7f;font-size:1rem;">Property Stack size: ${players.length+1}</span>`;
   customPopup(msg, ()=>showPlayerCards(), true,"Yes","No", true);
 });
