@@ -1555,7 +1555,7 @@ function calculateFinalTaxes(){
     const breaks=(p.streaks||0)+(p.powerCards||0);
     const share=p.netSharePercent;
     const barPct=Math.min(100,share);
-    const isWinner=winners.includes(p);
+    const isWinner=(winners.indexOf(p) !== -1);
     const tie=winners.length>1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
