@@ -1479,8 +1479,8 @@ function calculateFinalTaxes(){
     const capped=Math.min(gross,cap);
 
     const breaks=(pl.streaks||0)+(pl.powerCards||0);
-    const taxBaseBeforeAMT = Math.max(0,capped - breaks);
-    let taxBase = taxBaseBeforeAMT;
+    const taxBaseBeforeHMT = Math.max(0,capped - breaks);
+    let taxBase = taxBaseBeforeHMT;
 
     pl.amtApplied=false;
     pl.amtPercent='';
@@ -1506,11 +1506,11 @@ function calculateFinalTaxes(){
     pl.taxCeiling = cap;
     pl.cappedTax = capped;
     pl.breaks = breaks;
-    pl.baseBeforeAMT = taxBaseBeforeAMT;
+    pl.baseBeforeAMT = taxBaseBeforeHMT;
     pl.taxAvoidedCeiling = Math.max(0, gross - capped);
-    pl.taxAvoidedDeductions = Math.max(0, capped - taxBaseBeforeAMT);
+    pl.taxAvoidedDeductions = Math.max(0, capped - taxBaseBeforeHMT);
     pl.finalEffectiveRate = coins? (pl.tax/coins)*100 : 0;
-    pl.preDeductionEffectiveRate = coins? (capped/coins)*100 : 0;
+    pl.preDeductionEffectiveRate = coins? (pl.cappedTax/coins)*100 : 0;
   });
 
   const nets=players.map(p=>p.coins-p.tax);
@@ -1592,7 +1592,7 @@ function calculateFinalTaxes(){
           <div class="fr2-line fr2-tax-line">
             <span class="label">Tax:</span>
             <span class="value">${p.tax}</span>
-            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" title="Alternative Minimum Tax triggered">AMT ${p.amtPercent}</span>` : ''}
+            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" tabindex="0" data-tip="HMT stands for &quot;Haggie Minimum Tax.&quot; It is a penalty tax only on the rich and wealthy who have reduced their tax bill to zero-because even loopholes have limits!">HMT ${p.amtPercent}</span>` : ''}
           </div>
           <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
@@ -1650,7 +1650,7 @@ function openFinalDetailSheet(i){
     { label:'Tax Avoided (Ceiling)', val:p.taxAvoidedCeiling, color:'#19a43c' },
     { label:'Deductions Applied', val:breaks },
     { label:'Tax Avoided (Deductions)', val:p.taxAvoidedDeductions, color:'#19a43c' },
-    ...(p.amtApplied ? [{ label:`AMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
+    ...(p.amtApplied ? [{ label:`HMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
     { label:'Effective Rate Before Deductions', val: effBefore.toFixed(1)+'%' },
     { label:'Effective Rate After Deductions', val: effAfter.toFixed(1)+'%' },
     { label:'Final Taxes Owed', val:p.tax, color:'#dc143c' },
