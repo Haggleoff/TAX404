@@ -22,6 +22,7 @@
  * - (2025-09-29) Landlord designation: when a net-income tie is resolved solely by most properties,
  *                the sole winner is titled "Landlord" with teal styling (see CSS .landlord classes).
  * - (2025-09-30) AMT renamed to HMT (Haggleoff Minimum Tax) everywhere.
+ * - (2025-10-15) iOS fix: Shareholders use winner styling to avoid WebKit paint bug.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -1568,8 +1569,9 @@ function calculateFinalTaxes(){
     const tie = winners.length > 1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
+    // iOS fix: render shareholders with 'winner' styling (badge still says SHAREHOLDER)
     const winnerClass = isWinner
-      ? (landlordMode ? 'landlord' : (tie ? 'shareholder' : 'winner'))
+      ? (landlordMode ? 'landlord' : 'winner')
       : '';
 
     const badgeLabel = isWinner
