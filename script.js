@@ -1479,8 +1479,8 @@ function calculateFinalTaxes(){
     const capped=Math.min(gross,cap);
 
     const breaks=(pl.streaks||0)+(pl.powerCards||0);
-    const taxBaseBeforeAMT = Math.max(0,capped - breaks);
-    let taxBase = taxBaseBeforeAMT;
+    const taxBaseBeforeHMT = Math.max(0,capped - breaks);
+    let taxBase = taxBaseBeforeHMT;
 
     pl.amtApplied=false;
     pl.amtPercent='';
@@ -1490,11 +1490,11 @@ function calculateFinalTaxes(){
       if(coins>=40){
         taxBase=Math.floor(coins*0.10);
         pl.amtApplied=true; pl.amtPercent='10%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% AMT.';
+        pl.amtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% HMT.';
       } else if(coins>=30){
         taxBase=Math.floor(coins*0.05);
         pl.amtApplied=true; pl.amtPercent='5%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% AMT.';
+        pl.amtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% HMT.';
       }
     }
 
@@ -1506,11 +1506,11 @@ function calculateFinalTaxes(){
     pl.taxCeiling = cap;
     pl.cappedTax = capped;
     pl.breaks = breaks;
-    pl.baseBeforeAMT = taxBaseBeforeAMT;
+    pl.baseBeforeAMT = taxBaseBeforeHMT;
     pl.taxAvoidedCeiling = Math.max(0, gross - capped);
-    pl.taxAvoidedDeductions = Math.max(0, capped - taxBaseBeforeAMT);
+    pl.taxAvoidedDeductions = Math.max(0, capped - taxBaseBeforeHMT);
     pl.finalEffectiveRate = coins? (pl.tax/coins)*100 : 0;
-    pl.preDeductionEffectiveRate = coins? (capped/coins)*100 : 0;
+    pl.preDeductionEffectiveRate = coins? (pl.cappedTax/coins)*100 : 0;
   });
 
   const nets=players.map(p=>p.coins-p.tax);
@@ -1534,13 +1534,18 @@ function calculateFinalTaxes(){
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  const sorted=[...players].sort((a,b)=>{
+  // Sort by indices to avoid any object-identity quirks on mobile browsers
+  const sortedIdxs = players.map((_,i)=>i).sort((ia,ib)=>{
+    const a=players[ia], b=players[ib];
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
     if(netDiff!==0) return netDiff;
     const propDiff = b.properties - a.properties;
     if(propDiff!==0) return propDiff;
     return 0;
   });
+
+  // Winner indices (robust for mobile)
+  const winnersIdxs = winners.map(w=>players.indexOf(w)).filter(i=>i>=0);
 
   const ribbon = winners.length===1
     ? (landlordMode
@@ -1549,18 +1554,14 @@ function calculateFinalTaxes(){
     : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
-  sorted.forEach((p)=>{
-    const net=p.coins-p.tax;
-    theEff=p.coins?Math.round((p.tax/p.coins)*100):0; // (unused variable kept from legacy)
-  });
-  cards='';
-  sorted.forEach((p)=>{
+  sortedIdxs.forEach((idx)=>{
+    const p=players[idx];
     const net=p.coins-p.tax;
     const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
     const breaks=(p.streaks||0)+(p.powerCards||0);
     const share=p.netSharePercent;
     const barPct=Math.min(100,share);
-    const isWinner=winners.includes(p);
+    const isWinner = winnersIdxs.indexOf(idx)!==-1;
     const tie=winners.length>1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
@@ -1592,7 +1593,7 @@ function calculateFinalTaxes(){
           <div class="fr2-line fr2-tax-line">
             <span class="label">Tax:</span>
             <span class="value">${p.tax}</span>
-            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" title="Alternative Minimum Tax triggered">AMT ${p.amtPercent}</span>` : ''}
+            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" tabindex="0" data-tip="HMT stands for &quot;Haggie Minimum Tax&quot; It is a penalty tax only on the rich and wealthy who have reduced their tax bill to zero-because even loopholes have limits!">HMT ${p.amtPercent}</span>` : ''}
           </div>
           <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
@@ -1601,7 +1602,7 @@ function calculateFinalTaxes(){
         <div class="fr2-quote">${msg}</div>
         <div class="fr2-netshare">Net Share: ${Math.round(barPct)}%</div>
 
-        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${players.indexOf(p)}); return false;">More Info</a>
+        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${idx}); return false;">More Info</a>
       </div>`;
   });
 
@@ -1650,7 +1651,7 @@ function openFinalDetailSheet(i){
     { label:'Tax Avoided (Ceiling)', val:p.taxAvoidedCeiling, color:'#19a43c' },
     { label:'Deductions Applied', val:breaks },
     { label:'Tax Avoided (Deductions)', val:p.taxAvoidedDeductions, color:'#19a43c' },
-    ...(p.amtApplied ? [{ label:`AMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
+    ...(p.amtApplied ? [{ label:`HMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
     { label:'Effective Rate Before Deductions', val: effBefore.toFixed(1)+'%' },
     { label:'Effective Rate After Deductions', val: effAfter.toFixed(1)+'%' },
     { label:'Final Taxes Owed', val:p.tax, color:'#dc143c' },
