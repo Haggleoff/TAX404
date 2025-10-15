@@ -1490,11 +1490,11 @@ function calculateFinalTaxes(){
       if(coins>=40){
         taxBase=Math.floor(coins*0.10);
         pl.amtApplied=true; pl.amtPercent='10%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% AMT.';
+        pl.amtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% HMT.';
       } else if(coins>=30){
         taxBase=Math.floor(coins*0.05);
         pl.amtApplied=true; pl.amtPercent='5%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% AMT.';
+        pl.amtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% HMT.';
       }
     }
 
