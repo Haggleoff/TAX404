@@ -1513,28 +1513,26 @@ function calculateFinalTaxes(){
     pl.preDeductionEffectiveRate = coins? (pl.cappedTax/coins)*100 : 0;
   });
 
-  const nets=players.map(p=>p.coins-p.tax);
-  const maxNet=Math.max(...nets);
-
-  const primaryCandidates = players.filter(p => (p.coins - p.tax) === maxNet);
-  const propTieBreakUsed = primaryCandidates.length > 1; // indicates a net-income tie existed
-  let winners;
-  if(primaryCandidates.length > 1){
-    const maxPropsAmong = Math.max(...primaryCandidates.map(p=>p.properties));
-    const propFiltered = primaryCandidates.filter(p=>p.properties === maxPropsAmong);
-    winners = propFiltered;
+  // Compute winners by indices to avoid object identity issues on some mobile browsers
+  const nets = players.map(p => p.coins - p.tax);
+  const maxNet = Math.max(...nets);
+  const primaryIdxs = players.map((_,i)=>i).filter(i => nets[i] === maxNet);
+  const propTieBreakUsed = primaryIdxs.length > 1;
+  let winnersIdxs;
+  if (primaryIdxs.length > 1) {
+    const maxPropsAmong = Math.max(...primaryIdxs.map(i => players[i].properties));
+    winnersIdxs = primaryIdxs.filter(i => players[i].properties === maxPropsAmong);
   } else {
-    winners = primaryCandidates;
+    winnersIdxs = primaryIdxs;
   }
-
-  const landlordMode = propTieBreakUsed && winners.length === 1; // Landlord if tie resolved purely by property count
+  const landlordMode = propTieBreakUsed && winnersIdxs.length === 1;
 
   totalAssetsForResults=players.reduce((s,p)=>s+p.coins+p.properties,0)||1;
   players.forEach(p=>{
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  // Sort by indices to avoid any object-identity quirks on mobile browsers
+  // Sort by indices (deterministic)
   const sortedIdxs = players.map((_,i)=>i).sort((ia,ib)=>{
     const a=players[ia], b=players[ib];
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
@@ -1544,14 +1542,11 @@ function calculateFinalTaxes(){
     return 0;
   });
 
-  // Winner indices (robust for mobile)
-  const winnersIdxs = winners.map(w=>players.indexOf(w)).filter(i=>i>=0);
-
-  const ribbon = winners.length===1
+  const ribbon = winnersIdxs.length===1
     ? (landlordMode
-        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${winners[0].name} Landlord</span></div>`
-        : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`)
-    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
+        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${players[winnersIdxs[0]].name} Landlord</span></div>`
+        : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${players[winnersIdxs[0]].name} Wins!</span></div>`)
+    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winnersIdxs.map(i=>players[i].name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
   sortedIdxs.forEach((idx)=>{
@@ -1562,7 +1557,7 @@ function calculateFinalTaxes(){
     const share=p.netSharePercent;
     const barPct=Math.min(100,share);
     const isWinner = winnersIdxs.indexOf(idx)!==-1;
-    const tie=winners.length>1;
+    const tie=winnersIdxs.length>1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
     const winnerClass = isWinner
