@@ -1534,13 +1534,18 @@ function calculateFinalTaxes(){
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  const sorted=[...players].sort((a,b)=>{
+  // Sort by indices to avoid any object-identity quirks on mobile browsers
+  const sortedIdxs = players.map((_,i)=>i).sort((ia,ib)=>{
+    const a=players[ia], b=players[ib];
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
     if(netDiff!==0) return netDiff;
     const propDiff = b.properties - a.properties;
     if(propDiff!==0) return propDiff;
     return 0;
   });
+
+  // Winner indices (robust for mobile)
+  const winnersIdxs = winners.map(w=>players.indexOf(w)).filter(i=>i>=0);
 
   const ribbon = winners.length===1
     ? (landlordMode
@@ -1549,13 +1554,14 @@ function calculateFinalTaxes(){
     : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
-  sorted.forEach((p)=>{
+  sortedIdxs.forEach((idx)=>{
+    const p=players[idx];
     const net=p.coins-p.tax;
     const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
     const breaks=(p.streaks||0)+(p.powerCards||0);
     const share=p.netSharePercent;
     const barPct=Math.min(100,share);
-    const isWinner=(winners.indexOf(p) !== -1);
+    const isWinner = winnersIdxs.indexOf(idx)!==-1;
     const tie=winners.length>1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
@@ -1596,7 +1602,7 @@ function calculateFinalTaxes(){
         <div class="fr2-quote">${msg}</div>
         <div class="fr2-netshare">Net Share: ${Math.round(barPct)}%</div>
 
-        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${players.indexOf(p)}); return false;">More Info</a>
+        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${idx}); return false;">More Info</a>
       </div>`;
   });
 
