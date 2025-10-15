@@ -1592,7 +1592,7 @@ function calculateFinalTaxes(){
           <div class="fr2-line fr2-tax-line">
             <span class="label">Tax:</span>
             <span class="value">${p.tax}</span>
-            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" tabindex="0" data-tip="HMT stands for &quot;Haggie Minimum Tax.&quot; It is a penalty tax only on the rich and wealthy who have reduced their tax bill to zero-because even loopholes have limits!">HMT ${p.amtPercent}</span>` : ''}
+            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" tabindex="0" data-tip="HMT stands for &quot;Haggie Minimum Tax&quot; It is a penalty tax only on the rich and wealthy who have reduced their tax bill to zero-because even loopholes have limits!">HMT ${p.amtPercent}</span>` : ''}
           </div>
           <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
