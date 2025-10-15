@@ -21,6 +21,7 @@
  * - (2025-09-28 LATE2) Endgame entry: free typing (no live clamp). Clamp only after pause (debounce) or blur.
  * - (2025-09-29) Landlord designation: when a net-income tie is resolved solely by most properties,
  *                the sole winner is titled "Landlord" with teal styling (see CSS .landlord classes).
+ * - (2025-09-30) AMT renamed to HMT (Haggleoff Minimum Tax) everywhere.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -1365,6 +1366,13 @@ function scheduleClampProps(i){
   propsClampTimers[i]=setTimeout(()=>clampProperties(i), CLAMP_DELAY);
 }
 
+/* Helper to resolve a player's index reliably after sorting/cloning */
+function resolvePlayerIndex(p){
+  const idx = players.indexOf(p);
+  if(idx !== -1) return idx;
+  return players.findIndex(pp => pp && p && pp.name === p.name);
+}
+
 function loadEndgame(){
   if(timerInterval) clearInterval(timerInterval);
   timerRunningState=false;
@@ -1482,19 +1490,20 @@ function calculateFinalTaxes(){
     const taxBaseBeforeHMT = Math.max(0,capped - breaks);
     let taxBase = taxBaseBeforeHMT;
 
-    pl.amtApplied=false;
-    pl.amtPercent='';
-    pl.amtExplanation='';
+    pl.hmtApplied=false;
+    pl.hmtPercent='';
+    pl.hmtExplanation='';
 
+    // Haggleoff Minimum Tax (HMT)
     if(taxBase===0){
       if(coins>=40){
         taxBase=Math.floor(coins*0.10);
-        pl.amtApplied=true; pl.amtPercent='10%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% HMT.';
+        pl.hmtApplied=true; pl.hmtPercent='10%';
+        pl.hmtExplanation='Deductions reduced capped tax to zero; income ≥ 40 triggers 10% HMT.';
       } else if(coins>=30){
         taxBase=Math.floor(coins*0.05);
-        pl.amtApplied=true; pl.amtPercent='5%';
-        pl.amtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% HMT.';
+        pl.hmtApplied=true; pl.hmtPercent='5%';
+        pl.hmtExplanation='Deductions reduced capped tax to zero; income 30–39 triggers 5% HMT.';
       }
     }
 
@@ -1506,35 +1515,35 @@ function calculateFinalTaxes(){
     pl.taxCeiling = cap;
     pl.cappedTax = capped;
     pl.breaks = breaks;
-    pl.baseBeforeAMT = taxBaseBeforeHMT;
+    pl.baseBeforeHMT = taxBaseBeforeHMT;
     pl.taxAvoidedCeiling = Math.max(0, gross - capped);
     pl.taxAvoidedDeductions = Math.max(0, capped - taxBaseBeforeHMT);
     pl.finalEffectiveRate = coins? (pl.tax/coins)*100 : 0;
-    pl.preDeductionEffectiveRate = coins? (pl.cappedTax/coins)*100 : 0;
+    pl.preDeductionEffectiveRate = coins? (capped/coins)*100 : 0;
   });
 
-  // Winners by indices only (no object identity), robust on mobile
-  const nets = players.map(function(p){ return p.coins - p.tax; });
-  const maxNet = Math.max.apply(null, nets);
-  const primaryIdxs = players.map(function(_,i){ return i; }).filter(function(i){ return nets[i] === maxNet; });
-  const propTieBreakUsed = primaryIdxs.length > 1;
-  var winnersIdxs;
-  if (primaryIdxs.length > 1) {
-    const maxPropsAmong = Math.max.apply(null, primaryIdxs.map(function(i){ return players[i].properties; }));
-    winnersIdxs = primaryIdxs.filter(function(i){ return players[i].properties === maxPropsAmong; });
+  const nets=players.map(p=>p.coins-p.tax);
+  const maxNet=Math.max(...nets);
+
+  const primaryCandidates = players.filter(p => (p.coins - p.tax) === maxNet);
+  const propTieBreakUsed = primaryCandidates.length > 1;
+  let winners;
+  if(primaryCandidates.length > 1){
+    const maxPropsAmong = Math.max(...primaryCandidates.map(p=>p.properties));
+    const propFiltered = primaryCandidates.filter(p=>p.properties === maxPropsAmong);
+    winners = propFiltered;
   } else {
-    winnersIdxs = primaryIdxs;
+    winners = primaryCandidates;
   }
-  const landlordMode = propTieBreakUsed && winnersIdxs.length === 1;
+
+  const landlordMode = propTieBreakUsed && winners.length === 1;
 
   totalAssetsForResults=players.reduce((s,p)=>s+p.coins+p.properties,0)||1;
   players.forEach(p=>{
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  // Sort indices deterministically (no arrows in comparator)
-  const sortedIdxs = players.map(function(_,i){ return i; }).sort(function(ia, ib){
-    const a=players[ia], b=players[ib];
+  const sorted=[...players].sort((a,b)=>{
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
     if(netDiff!==0) return netDiff;
     const propDiff = b.properties - a.properties;
@@ -1542,28 +1551,22 @@ function calculateFinalTaxes(){
     return 0;
   });
 
-  const ribbon = winnersIdxs.length===1
+  const ribbon = winners.length===1
     ? (landlordMode
-        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${players[winnersIdxs[0]].name} Landlord</span></div>`
-        : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${players[winnersIdxs[0]].name} Wins!</span></div>`)
-    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winnersIdxs.map(function(i){return players[i].name;}).join(', ')} Shareholders</span></div>`;
-
-  // Use a plain object as a set for membership checks
-  const winnersSet = {};
-  for(let wi=0; wi<winnersIdxs.length; wi++){ winnersSet[winnersIdxs[wi]] = true; }
+        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${winners[0].name} Landlord</span></div>`
+        : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`)
+    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
-  for(let si=0; si<sortedIdxs.length; si++){
-    const idx = sortedIdxs[si];
-    const p = players[idx];
-    const net = p.coins - p.tax;
-    const eff = p.coins ? Math.round((p.tax/p.coins)*100) : 0;
-    const breaks = (p.streaks||0) + (p.powerCards||0);
-    const share = p.netSharePercent;
-    const barPct = Math.min(100, share);
-    const isWinner = !!winnersSet[idx];
-    const tie = winnersIdxs.length > 1;
-    const msg = getTaxBracketMessage(p.coins, p.properties);
+  sorted.forEach((p)=>{
+    const net=p.coins-p.tax;
+    const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
+    const breaks=(p.streaks||0)+(p.powerCards||0);
+    const share=p.netSharePercent;
+    const barPct=Math.min(100,share);
+    const isWinner = winners.some(w => w === p || (w && p && w.name === p.name));
+    const tie = winners.length > 1;
+    const msg=getTaxBracketMessage(p.coins,p.properties);
 
     const winnerClass = isWinner
       ? (landlordMode ? 'landlord' : (tie ? 'shareholder' : 'winner'))
@@ -1573,7 +1576,9 @@ function calculateFinalTaxes(){
       ? (landlordMode ? 'LANDLORD' : (tie ? 'SHAREHOLDER' : 'WINNER'))
       : '';
 
-    cards += `
+    const idxForMore = resolvePlayerIndex(p);
+
+    cards+=`
       <div class="fr2-card ${winnerClass}">
         ${isWinner?`<div class="fr2-badge">${badgeLabel}</div>`:''}
         <div class="fr2-name">${p.name}</div>
@@ -1593,7 +1598,7 @@ function calculateFinalTaxes(){
           <div class="fr2-line fr2-tax-line">
             <span class="label">Tax:</span>
             <span class="value">${p.tax}</span>
-            ${p.amtApplied ? `<span class="fr2-amt-pill ${p.amtPercent==='5%'?'p5':'p10'}" tabindex="0" data-tip="HMT stands for &quot;Haggie Minimum Tax&quot; It is a penalty tax only on the rich and wealthy who have reduced their tax bill to zero-because even loopholes have limits!">HMT ${p.amtPercent}</span>` : ''}
+            ${p.hmtApplied ? `<span class="fr2-hmt-pill ${p.hmtPercent==='5%'?'p5':'p10'}" title="Haggleoff Minimum Tax triggered">HMT ${p.hmtPercent}</span>` : ''}
           </div>
           <div class="fr2-line"><span class="label">Net Income:</span> <span class="value">${net}</span></div>
           <div class="fr2-line"><span class="label">Audit Risk:</span> <span class="value">${getAuditRiskLevel(p)}</span></div>
@@ -1602,9 +1607,9 @@ function calculateFinalTaxes(){
         <div class="fr2-quote">${msg}</div>
         <div class="fr2-netshare">Net Share: ${Math.round(barPct)}%</div>
 
-        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${idx}); return false;">More Info</a>
+        <a href="#" class="fr2-more" onclick="showTaxBreakdown(${idxForMore}); return false;">More Info</a>
       </div>`;
-  }
+  });
 
   summary.style.display='block';
   summary.innerHTML=`
@@ -1651,7 +1656,7 @@ function openFinalDetailSheet(i){
     { label:'Tax Avoided (Ceiling)', val:p.taxAvoidedCeiling, color:'#19a43c' },
     { label:'Deductions Applied', val:breaks },
     { label:'Tax Avoided (Deductions)', val:p.taxAvoidedDeductions, color:'#19a43c' },
-    ...(p.amtApplied ? [{ label:`HMT Applied (${p.amtPercent})`, val:p.tax, extra:p.amtExplanation, color:'#dc143c' }] : []),
+    ...(p.hmtApplied ? [{ label:`HMT Applied (${p.hmtPercent})`, val:p.tax, extra:p.hmtExplanation, color:'#dc143c' }] : []),
     { label:'Effective Rate Before Deductions', val: effBefore.toFixed(1)+'%' },
     { label:'Effective Rate After Deductions', val: effAfter.toFixed(1)+'%' },
     { label:'Final Taxes Owed', val:p.tax, color:'#dc143c' },

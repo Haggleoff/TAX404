@@ -1073,9 +1073,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   border-radius:18px;
   padding:1rem .95rem 1.1rem;
   box-shadow:0 10px 30px #000a, 0 0 0 1px #000 inset;
+  display:block;
+  visibility:visible;
+  opacity:1;
 }
 .fr2-card.winner { border-color:#d4af7f; box-shadow:0 0 0 2px #d4af7f55, 0 12px 32px #000c; }
-.fr2-card.shareholder { border-color:#7c96d9; box-shadow:0 0 0 2px #7c96d955, 0 12px 32px #000c; }
+.fr2-card.shareholder { border-color:#7c96d9; box-shadow:0 0 0 2px #7c96d955, 0 12px 32px #000c; display:block; visibility:visible; opacity:1; }
 /* Landlord card */
 .fr2-card.landlord { border-color:#24c2a8; box-shadow:0 0 0 2px #24c2a855, 0 12px 32px #000c; }
 
@@ -1146,7 +1149,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .fr2-line .value { color:#d4af7f; font-weight:700; }
 
 .fr2-tax-line { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
-.fr2-amt-pill{
+.fr2-hmt-pill{
   background:#4e0c10;
   color:#f8e9e9;
   font-family:var(--font-display);
@@ -1160,11 +1163,11 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   top:-1px;
   cursor:help;
 }
-.fr2-amt-pill.p5{ background:#641016; box-shadow:0 2px 6px #000a, inset 0 0 0 2px #8d2129; }
-.fr2-amt-pill.p10{ background:#5a0d11; box-shadow:0 2px 6px #000a, inset 0 0 0 2px #9b242d; }
-.fr2-amt-pill:hover,
-.fr2-amt-pill:focus{ outline:2px solid #d4af7f; outline-offset:2px; }
-.fr2-amt-pill[data-tip]::after {
+.fr2-hmt-pill.p5{ background:#641016; box-shadow:0 2px 6px #000a, inset 0 0 0 2px #8d2129; }
+.fr2-hmt-pill.p10{ background:#5a0d11; box-shadow:0 2px 6px #000a, inset 0 0 0 2px #9b242d; }
+.fr2-hmt-pill:hover,
+.fr2-hmt-pill:focus{ outline:2px solid #d4af7f; outline-offset:2px; }
+.fr2-hmt-pill[data-tip]::after {
   content:attr(data-tip);
   position:absolute;
   left:50%; bottom:110%;
@@ -1184,8 +1187,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 4px 16px #000c;
   z-index:40;
 }
-.fr2-amt-pill[data-tip]:hover::after,
-.fr2-amt-pill[data-tip]:focus::after { opacity:1; transform:translate(-50%,0); }
+.fr2-hmt-pill[data-tip]:hover::after,
+.fr2-hmt-pill[data-tip]:focus::after { opacity:1; transform:translate(-50%,0); }
 
 .fr2-quote {
   color:#d4af7f; font-style:italic; font-family:var(--font-display);
@@ -1226,27 +1229,4 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 @media (prefers-reduced-motion:reduce){
   .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }
-}
-
-/* =========================
-   Mobile Shareholder Fix
-   =========================
-   On some small-screen stylesets, non-allowed cards may be hidden by default.
-   Ensure shareholder (tie-winner) cards are visible on mobile/tablet too.
-*/
-@media (max-width: 768px), (hover: none) and (pointer: coarse) {
-  .fr2-grid { display: grid !important; }
-  .fr2-grid .fr2-card.shareholder {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    max-height: none !important;
-    height: auto !important;
-    pointer-events: auto !important;
-  }
-  .fr2-grid .fr2-card.winner,
-  .fr2-grid .fr2-card.landlord,
-  .fr2-grid .fr2-card.shareholder {
-    display: block !important;
-  }
 }
