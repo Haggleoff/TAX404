@@ -1513,15 +1513,15 @@ function calculateFinalTaxes(){
     pl.preDeductionEffectiveRate = coins? (pl.cappedTax/coins)*100 : 0;
   });
 
-  // Compute winners by indices to avoid object identity issues on some mobile browsers
-  const nets = players.map(p => p.coins - p.tax);
-  const maxNet = Math.max(...nets);
-  const primaryIdxs = players.map((_,i)=>i).filter(i => nets[i] === maxNet);
+  // Winners by indices only (no object identity), robust on mobile
+  const nets = players.map(function(p){ return p.coins - p.tax; });
+  const maxNet = Math.max.apply(null, nets);
+  const primaryIdxs = players.map(function(_,i){ return i; }).filter(function(i){ return nets[i] === maxNet; });
   const propTieBreakUsed = primaryIdxs.length > 1;
-  let winnersIdxs;
+  var winnersIdxs;
   if (primaryIdxs.length > 1) {
-    const maxPropsAmong = Math.max(...primaryIdxs.map(i => players[i].properties));
-    winnersIdxs = primaryIdxs.filter(i => players[i].properties === maxPropsAmong);
+    const maxPropsAmong = Math.max.apply(null, primaryIdxs.map(function(i){ return players[i].properties; }));
+    winnersIdxs = primaryIdxs.filter(function(i){ return players[i].properties === maxPropsAmong; });
   } else {
     winnersIdxs = primaryIdxs;
   }
@@ -1532,8 +1532,8 @@ function calculateFinalTaxes(){
     p.netSharePercent = ((p.coins+p.properties)/totalAssetsForResults)*100;
   });
 
-  // Sort by indices (deterministic)
-  const sortedIdxs = players.map((_,i)=>i).sort((ia,ib)=>{
+  // Sort indices deterministically (no arrows in comparator)
+  const sortedIdxs = players.map(function(_,i){ return i; }).sort(function(ia, ib){
     const a=players[ia], b=players[ib];
     const netDiff = (b.coins - b.tax) - (a.coins - a.tax);
     if(netDiff!==0) return netDiff;
@@ -1546,19 +1546,24 @@ function calculateFinalTaxes(){
     ? (landlordMode
         ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${players[winnersIdxs[0]].name} Landlord</span></div>`
         : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${players[winnersIdxs[0]].name} Wins!</span></div>`)
-    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winnersIdxs.map(i=>players[i].name).join(', ')} Shareholders</span></div>`;
+    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winnersIdxs.map(function(i){return players[i].name;}).join(', ')} Shareholders</span></div>`;
+
+  // Use a plain object as a set for membership checks
+  const winnersSet = {};
+  for(let wi=0; wi<winnersIdxs.length; wi++){ winnersSet[winnersIdxs[wi]] = true; }
 
   let cards='';
-  sortedIdxs.forEach((idx)=>{
-    const p=players[idx];
-    const net=p.coins-p.tax;
-    const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
-    const breaks=(p.streaks||0)+(p.powerCards||0);
-    const share=p.netSharePercent;
-    const barPct=Math.min(100,share);
-    const isWinner = winnersIdxs.indexOf(idx)!==-1;
-    const tie=winnersIdxs.length>1;
-    const msg=getTaxBracketMessage(p.coins,p.properties);
+  for(let si=0; si<sortedIdxs.length; si++){
+    const idx = sortedIdxs[si];
+    const p = players[idx];
+    const net = p.coins - p.tax;
+    const eff = p.coins ? Math.round((p.tax/p.coins)*100) : 0;
+    const breaks = (p.streaks||0) + (p.powerCards||0);
+    const share = p.netSharePercent;
+    const barPct = Math.min(100, share);
+    const isWinner = !!winnersSet[idx];
+    const tie = winnersIdxs.length > 1;
+    const msg = getTaxBracketMessage(p.coins, p.properties);
 
     const winnerClass = isWinner
       ? (landlordMode ? 'landlord' : (tie ? 'shareholder' : 'winner'))
@@ -1568,7 +1573,7 @@ function calculateFinalTaxes(){
       ? (landlordMode ? 'LANDLORD' : (tie ? 'SHAREHOLDER' : 'WINNER'))
       : '';
 
-    cards+=`
+    cards += `
       <div class="fr2-card ${winnerClass}">
         ${isWinner?`<div class="fr2-badge">${badgeLabel}</div>`:''}
         <div class="fr2-name">${p.name}</div>
@@ -1576,7 +1581,7 @@ function calculateFinalTaxes(){
         <div class="fr2-pillrow">
           <span class="fr2-pill">Income <span class="num">${p.coins}</span></span>
           <span class="fr2-pill">Props <span class="num">${p.properties}</span></span>
-            <span class="fr2-pill">Rate <span class="num">${eff}%</span></span>
+          <span class="fr2-pill">Rate <span class="num">${eff}%</span></span>
         </div>
         <div class="fr2-pillrow">
           <span class="fr2-pill deductions">Deductions <span class="num">${breaks}</span></span>
@@ -1599,7 +1604,7 @@ function calculateFinalTaxes(){
 
         <a href="#" class="fr2-more" onclick="showTaxBreakdown(${idx}); return false;">More Info</a>
       </div>`;
-  });
+  }
 
   summary.style.display='block';
   summary.innerHTML=`
