@@ -1227,3 +1227,26 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }
 }
+
+/* =========================
+   Mobile Shareholder Fix
+   =========================
+   On some small-screen stylesets, non-allowed cards may be hidden by default.
+   Ensure shareholder (tie-winner) cards are visible on mobile/tablet too.
+*/
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .fr2-grid { display: grid !important; }
+  .fr2-grid .fr2-card.shareholder {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-height: none !important;
+    height: auto !important;
+    pointer-events: auto !important;
+  }
+  .fr2-grid .fr2-card.winner,
+  .fr2-grid .fr2-card.landlord,
+  .fr2-grid .fr2-card.shareholder {
+    display: block !important;
+  }
+}
