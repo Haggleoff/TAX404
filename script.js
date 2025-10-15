@@ -1551,11 +1551,6 @@ function calculateFinalTaxes(){
   let cards='';
   sorted.forEach((p)=>{
     const net=p.coins-p.tax;
-    theEff=p.coins?Math.round((p.tax/p.coins)*100):0; // (unused variable kept from legacy)
-  });
-  cards='';
-  sorted.forEach((p)=>{
-    const net=p.coins-p.tax;
     const eff=p.coins?Math.round((p.tax/p.coins)*100):0;
     const breaks=(p.streaks||0)+(p.powerCards||0);
     const share=p.netSharePercent;
