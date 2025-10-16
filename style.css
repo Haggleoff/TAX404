@@ -1055,9 +1055,9 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 10px 38px #0008, 0 0 0 2px #e6c79a inset;
 }
 .fr2-ribbon.co {
-  background:linear-gradient(135deg,#7c96d9,#5168a8);
-  color:#fff;
-  box-shadow:0 10px 38px #0008, 0 0 0 2px #93adeb inset;
+  background:linear-gradient(135deg,#d4af7f,#b38954);
+  color:#232323;
+  box-shadow:0 10px 38px #0008, 0 0 0 2px #e6c79a inset;
 }
 /* Landlord ribbon (tie resolved via properties) */
 .fr2-ribbon.landlord {

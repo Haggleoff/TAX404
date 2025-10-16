@@ -1554,9 +1554,9 @@ function calculateFinalTaxes(){
 
   const ribbon = winners.length===1
     ? (landlordMode
-        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏡</span><span>${winners[0].name} Landlord</span></div>`
+        ? `<div class="fr2-ribbon landlord"><span class="emoji">🏆</span><span>${winners[0].name} Landlord</span></div>`
         : `<div class="fr2-ribbon"><span class="emoji">🏆</span><span>${winners[0].name} Wins!</span></div>`)
-    : `<div class="fr2-ribbon co"><span class="emoji">🤝</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
+    : `<div class="fr2-ribbon co"><span class="emoji">🏆</span><span>${winners.map(w=>w.name).join(', ')} Shareholders</span></div>`;
 
   let cards='';
   sorted.forEach((p)=>{
