@@ -17,6 +17,8 @@
    - Added .add-player-maxed state styling for disabled visual at 7-player cap (still clickable for popup).
    UPDATED (2025-09-29):
    - Added Landlord winner styling (tie resolved by properties) with teal theme.
+   UPDATED (2025-11-02):
+   - Debt Sheet quick-switch chips row styling (.debt-chip-row, .debt-chip). Centered layout.
    ========================================================= */
 
 :root {
@@ -959,6 +961,60 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .debt-pair-title { font-size:1.1rem; color:var(--color-accent); letter-spacing:.5px; font-family:var(--font-display); min-width:160px; text-align:center; }
 .debt-pair-title .other-player { color:#d9d9d9; }
 
+/* Debt Sheet Quick-Switch Chips - centered row */
+.debt-chip-row {
+  display:flex;
+  justify-content:center; /* center chips */
+  gap:.55rem;
+  overflow-x:auto;
+  padding:.35rem .2rem .45rem;
+  margin:.15rem 0 .15rem;
+  scrollbar-width:thin;
+  scrollbar-color:#444 #202020;
+}
+.debt-chip-row::-webkit-scrollbar { height:8px; }
+.debt-chip-row::-webkit-scrollbar-thumb { background:#444; border-radius:6px; }
+.debt-chip {
+  flex:0 0 auto;
+  min-width:92px;
+  background:#262626;
+  border:2px solid #3a3a3a;
+  border-radius:14px;
+  padding:.45rem .6rem .4rem;
+  text-align:center;
+  box-shadow:var(--shadow-sm);
+  cursor:pointer;
+  transition:background .18s, border-color .18s, transform .18s;
+}
+.debt-chip:active { transform:translateY(1px); }
+.debt-chip.active {
+  border-color:var(--color-accent);
+  box-shadow:0 0 0 2px #d4af7f33;
+  background:#2d2d2d;
+}
+.debt-chip.dim { opacity:.45; filter:grayscale(.2); }
+.debt-chip .name {
+  font-family:var(--font-display);
+  font-size:.9rem;
+  letter-spacing:.4px;
+  color:#e6e6e6;
+  line-height:1;
+  margin:0 0 .25rem 0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.debt-chip .debts {
+  display:flex;
+  justify-content:center;
+  gap:.6rem;
+  font-family:var(--font-display);
+  font-size:.78rem;
+  letter-spacing:.3px;
+}
+.debt-chip .owe { color:var(--color-danger); }
+.debt-chip .collect { color:var(--color-success); }
+
 .debt-sheet-footer {
   margin-top:0.55rem;
   display:flex;
@@ -1153,7 +1209,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   font-family:var(--font-display); font-size:.95rem; letter-spacing:.4px;
   box-shadow:inset 0 0 0 2px #161616;
 }
-.fr2-pill .num { color:#fff; font-weight:700; }
+.fr2-pill .num { color:#fff; }
 .fr2-pill.deductions { margin-top:.1rem; }
 
 .fr2-bar {

@@ -23,6 +23,9 @@
  *                the sole winner is titled "Landlord" with teal styling (see CSS .landlord classes).
  * - (2025-09-30) AMT renamed to HMT (Haggleoff Minimum Tax) everywhere.
  * - (2025-10-15) iOS fix: Shareholders use winner styling to avoid WebKit paint bug.
+ * - (2025-11-02) Outstanding Debts: Horizontal chips row quick-switch (below netline) with centered layout and number-only O/C.
+ * - (2025-11-02 LATE) Removed arrow buttons from debt sheet; kept swipe and keyboard navigation.
+ * - (2025-11-02 LATE2) Chips row auto-hidden when players ≤ 2.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -675,6 +678,56 @@ function refreshOverviewOnly(){
 
 /* ---------- Debt sheet ---------- */
 let openDebtPlayerIndex=null;
+
+/* Build quick-switch chips row for debt sheet (no O/C letters, number-only, color-coded) */
+function buildDebtChipsRow(a, selectedIdx){
+  if (players.length <= 2) return '';
+  let chips='';
+  for(let i=0;i<players.length;i++){
+    if(i===a) continue;
+    const owe = sumYouOwe(a,i);
+    const collect = sumTheyOwe(a,i);
+    const total = owe + collect;
+    const active = i===selectedIdx ? ' active' : '';
+    const dim = total===0 ? ' dim' : '';
+    const name = players[i].name;
+    chips += `
+      <button type="button" class="debt-chip${active}${dim}" data-index="${i}" aria-label="${name}: You owe ${owe}, They owe you ${collect}">
+        <div class="name">${name}</div>
+        <div class="debts"><span class="owe">${owe}</span><span class="collect">${collect}</span></div>
+      </button>`;
+  }
+  return `<div class="debt-chip-row" id="debtChipRow">${chips}</div>`;
+}
+function refreshDebtChipsRow(){
+  const a = currentPlayerIndex;
+  const b = openDebtPlayerIndex;
+  const row = document.getElementById('debtChipRow');
+  if(!row) return;
+  let chips='';
+  for(let i=0;i<players.length;i++){
+    if(i===a) continue;
+    const owe = sumYouOwe(a,i);
+    const collect = sumTheyOwe(a,i);
+    const total = owe + collect;
+    const active = i===b ? ' active' : '';
+    const dim = total===0 ? ' dim' : '';
+    const name = players[i].name;
+    chips += `
+      <button type="button" class="debt-chip${active}${dim}" data-index="${i}" aria-label="${name}: You owe ${owe}, They owe you ${collect}">
+        <div class="name">${name}</div>
+        <div class="debts"><span class="owe">${owe}</span><span class="collect">${collect}</span></div>
+      </button>`;
+  }
+  row.innerHTML = chips;
+}
+function scrollActiveChipIntoView(){
+  const row = document.getElementById('debtChipRow');
+  if(!row) return;
+  const active = row.querySelector('.debt-chip.active');
+  if(active) active.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+}
+
 function attachDebtBarHandler(){
   const bar=document.getElementById('debtSummaryBar');
   if(!bar) return;
@@ -712,6 +765,9 @@ function closeDebtSheet(){
 function renderDebtSheet(otherIdx){
   const a=currentPlayerIndex,b=otherIdx;
   const youOwe=sumYouOwe(a,b), theyOwe=sumTheyOwe(a,b);
+
+  const chipsRow = buildDebtChipsRow(a, b);
+
   let groups='';
   Object.entries(debtCategoryGroups).forEach(([group,cats])=>{
     const collapsed=!!debtGroupCollapsed[group];
@@ -756,7 +812,6 @@ function renderDebtSheet(otherIdx){
         </div>
       </div>`;
   });
-  const navNeeded=players.length>2;
   return `
     <div class="debt-sheet-header">
       <div class="debt-sheet-grip"></div>
@@ -765,16 +820,13 @@ function renderDebtSheet(otherIdx){
     </div>
     <div class="debt-cat-groups">${groups}</div>
     <div class="debt-pair-bottom-summary">
-      <div class="debt-pair-nav">
-        <button type="button" class="debt-pair-nav-btn" id="debtPairPrevBtn" ${navNeeded?'':'disabled'} aria-label="Previous Player">&#8249;</button>
-        <div class="debt-pair-title" data-pair-title>
-          <span class="active-player">${players[a].name}</span> ↔ <span class="other-player">${players[b].name}</span>
-        </div>
-        <button type="button" class="debt-pair-nav-btn" id="debtPairNextBtn" ${navNeeded?'':'disabled'} aria-label="Next Player">&#8250;</button>
+      <div class="debt-pair-title" data-pair-title>
+        <span class="active-player">${players[a].name}</span> ↔ <span class="other-player">${players[b].name}</span>
       </div>
       <div class="debt-sheet-netline" data-pair-status style="font-size:1rem;">
         You Owe <span style="color:#dc143c;">${youOwe}</span> | They Owe You <span style="color:#19a43c;">${theyOwe}</span>
       </div>
+      ${chipsRow}
     </div>
     <div class="debt-sheet-footer">
       <button type="button" class="debt-footer-btn danger" id="clearAllPairBtn">Clear All</button>
@@ -889,6 +941,10 @@ function refreshCategoryRow(cat){
     });
   }
   updateCategoryControls(cat);
+
+  // Update chips row counts and keep active chip visible
+  refreshDebtChipsRow();
+  scrollActiveChipIntoView();
 }
 
 function updatePairHeader(a,b){
@@ -899,6 +955,8 @@ function updatePairHeader(a,b){
   if(netLine){
     netLine.innerHTML=`You Owe <span style="color:#dc143c;">${youOwe}</span> | They Owe You <span style="color:#19a43c;">${theyOwe}</span>`;
   }
+  // Keep chips row summaries fresh
+  refreshDebtChipsRow();
 }
 
 /* Helper: hide all active trash overlays */
@@ -1003,6 +1061,23 @@ function attachDebtSheetEvents(otherIdx){
   sheet.querySelector('#closeSheetBtn').onclick=closeDebtSheet;
   sheet.querySelector('#clearAllPairBtn').onclick=()=>openClearDebtsOptions(a,otherIdx);
 
+  /* Chips row click-to-jump */
+  const chipRow = sheet.querySelector('#debtChipRow');
+  if(chipRow){
+    chipRow.addEventListener('click', (e)=>{
+      const chip = e.target.closest('.debt-chip');
+      if(!chip) return;
+      const idx = parseInt(chip.dataset.index, 10);
+      if(isNaN(idx) || idx===openDebtPlayerIndex) return;
+      openDebtPlayerIndex = idx;
+      sheet.innerHTML = renderDebtSheet(openDebtPlayerIndex);
+      attachDebtSheetEvents(openDebtPlayerIndex);
+      updateTimerDisplays();
+      refreshOverviewOnly();
+      scrollActiveChipIntoView();
+    });
+  }
+
   sheet.querySelectorAll('.debt-group-toggle').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const g=btn.dataset.group;
@@ -1032,11 +1107,7 @@ function attachDebtSheetEvents(otherIdx){
     sheet.dataset.adjustHandlerBound='1';
   }
 
-  const prev=document.getElementById('debtPairPrevBtn');
-  const next=document.getElementById('debtPairNextBtn');
-  if(prev) prev.onclick=()=>navigateDebtPlayer(-1);
-  if(next) next.onclick=()=>navigateDebtPlayer(1);
-
+  // Swipe/drag navigation (kept)
   let startX=0,startY=0,active=false;
   const start=(x,y)=>{ startX=x; startY=y; active=true; };
   const end=(x,y)=>{
@@ -1061,6 +1132,9 @@ function attachDebtSheetEvents(otherIdx){
     if(e.target.id==='debtSheetOverlay') closeDebtSheet();
   }, { once:true });
   bindTimerClick();
+
+  // Keep the active chip in view
+  scrollActiveChipIntoView();
 }
 
 function debtSheetKeyHandler(e){
@@ -1089,6 +1163,7 @@ function navigateDebtPlayer(offset){
     attachDebtSheetEvents(openDebtPlayerIndex);
     updateTimerDisplays();
     refreshOverviewOnly();
+    scrollActiveChipIntoView();
   }
 }
 
@@ -1164,6 +1239,7 @@ function rebuildDebtSheet(otherIdx){
     attachDebtSheetEvents(otherIdx);
     updateTimerDisplays();
     refreshOverviewOnly();
+    scrollActiveChipIntoView();
   }
 }
 
