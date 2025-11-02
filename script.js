@@ -19,10 +19,15 @@
  * - (2025-09-28) Setup player cap: Max 7 players. Add Player button greys out at 7
  * - (2025-09-28 LATE) Endgame caps: Total Haggleoffs ≤ 100; Total Properties ≤ Property Stack + Players.
  * - (2025-09-28 LATE2) Endgame entry: free typing (no live clamp). Clamp only after pause (debounce) or blur.
- * - (2025-09-29) Landlord designation: when a net-income tie is resolved solely by most properties,
- *                the sole winner is titled "Landlord" with teal styling (see CSS .landlord classes).
- * - (2025-09-30) AMT renamed to HMT (Haggleoff Minimum Tax) everywhere.
- * - (2025-10-15) iOS fix: Shareholders use winner styling to avoid WebKit paint bug.
+ * - (2025-09-29) Landlord designation with teal styling when tie resolved by properties.
+ * - (2025-09-30) AMT renamed to HMT everywhere.
+ * - (2025-11-02) Outstanding Debts: Centered horizontal chips row (number-only), arrow buttons removed.
+ * - (2025-11-02) Hide chips row when players ≤ 2.
+ * - (2025-11-02 LATE) Mobile perf + UX:
+ *    * Only update the active chip counts (no full chips rebuild) on category tweaks.
+ *    * Do not auto-scroll chips row during adjustments.
+ *    * Single pointer-based swipe handler (avoid duplicate touch+pointer).
+ *    * Swiping the chips row does not change active selection; only tap/click does.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -173,10 +178,7 @@ function computeDonationVisuals(){
   return { blocks, breaksPreview };
 }
 
-/**
- * Build the Tax Breaks badge.
- * For active card we pass interactive=true to allow tooltip activation.
- */
+/* ---------- Tax breaks badge ---------- */
 function buildTaxBreaksBadge(value, interactive=false){
   const interactiveAttrs = interactive
     ? `data-interactive="1" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false"`
@@ -514,9 +516,7 @@ function initInteractiveTooltips(){
     trigger.classList.remove('tb-open');
     trigger.setAttribute('aria-expanded','false');
     const t=trigger.querySelector('.tb-tooltip');
-    if(t){
-      t.setAttribute('aria-hidden','true');
-    }
+    if(t){ t.setAttribute('aria-hidden','true'); }
     if(openTrigger===trigger) openTrigger=null;
   }
   function open(trigger){
@@ -675,6 +675,78 @@ function refreshOverviewOnly(){
 
 /* ---------- Debt sheet ---------- */
 let openDebtPlayerIndex=null;
+
+/* Build quick-switch chips row (no O/C letters; numbers only; centered). Hidden if ≤2 players. */
+function buildDebtChipsRow(a, selectedIdx){
+  if (players.length <= 2) return '';
+  let chips='';
+  for(let i=0;i<players.length;i++){
+    if(i===a) continue;
+    const owe = sumYouOwe(a,i);
+    const collect = sumTheyOwe(a,i);
+    const total = owe + collect;
+    const active = i===selectedIdx ? ' active' : '';
+    const dim = total===0 ? ' dim' : '';
+    const name = players[i].name;
+    chips += `
+      <button type="button" class="debt-chip${active}${dim}" data-index="${i}" aria-label="${name}: You owe ${owe}, They owe you ${collect}">
+        <div class="name">${name}</div>
+        <div class="debts"><span class="owe">${owe}</span><span class="collect">${collect}</span></div>
+      </button>`;
+  }
+  return `<div class="debt-chip-row" id="debtChipRow">${chips}</div>`;
+}
+
+/* Lightweight: update ONLY the active chip counts to avoid full rebuilds while adjusting */
+function updateActiveChipCounts(){
+  const row = document.getElementById('debtChipRow');
+  if(!row) return;
+  const a = currentPlayerIndex;
+  const b = openDebtPlayerIndex;
+  if(b==null) return;
+  const chip = row.querySelector(`.debt-chip[data-index="${b}"]`);
+  if(!chip) return;
+  const owe = sumYouOwe(a,b);
+  const collect = sumTheyOwe(a,b);
+  const total = owe + collect;
+  const oweEl = chip.querySelector('.owe');
+  const colEl = chip.querySelector('.collect');
+  if(oweEl) oweEl.textContent = String(owe);
+  if(colEl) colEl.textContent = String(collect);
+  chip.classList.toggle('dim', total===0);
+}
+
+function scrollActiveChipIntoView(){
+  const row = document.getElementById('debtChipRow');
+  if(!row) return;
+  const active = row.querySelector('.debt-chip.active');
+  if(active) active.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+}
+
+/* Ensure selected chip is visible without jarring scroll (instant, nearest) */
+function ensureActiveChipVisibleInstant(){
+  const row = document.getElementById('debtChipRow');
+  if(!row) return;
+  const active = row.querySelector('.debt-chip.active');
+  if(!active) return;
+
+  const margin = 8;
+  const rowRect = row.getBoundingClientRect();
+  const chipRect = active.getBoundingClientRect();
+  const prevBehavior = row.style.scrollBehavior;
+  row.style.scrollBehavior = 'auto';
+
+  if(chipRect.left < rowRect.left + margin){
+    // Scroll left just enough to bring it into view
+    row.scrollLeft = active.offsetLeft - margin;
+  } else if(chipRect.right > rowRect.right - margin){
+    // Scroll right just enough to bring it into view
+    row.scrollLeft = active.offsetLeft - (row.clientWidth - active.offsetWidth) + margin;
+  }
+
+  row.style.scrollBehavior = prevBehavior;
+}
+
 function attachDebtBarHandler(){
   const bar=document.getElementById('debtSummaryBar');
   if(!bar) return;
@@ -712,6 +784,8 @@ function closeDebtSheet(){
 function renderDebtSheet(otherIdx){
   const a=currentPlayerIndex,b=otherIdx;
   const youOwe=sumYouOwe(a,b), theyOwe=sumTheyOwe(a,b);
+  const chipsRow = buildDebtChipsRow(a, b);
+
   let groups='';
   Object.entries(debtCategoryGroups).forEach(([group,cats])=>{
     const collapsed=!!debtGroupCollapsed[group];
@@ -756,7 +830,6 @@ function renderDebtSheet(otherIdx){
         </div>
       </div>`;
   });
-  const navNeeded=players.length>2;
   return `
     <div class="debt-sheet-header">
       <div class="debt-sheet-grip"></div>
@@ -765,16 +838,13 @@ function renderDebtSheet(otherIdx){
     </div>
     <div class="debt-cat-groups">${groups}</div>
     <div class="debt-pair-bottom-summary">
-      <div class="debt-pair-nav">
-        <button type="button" class="debt-pair-nav-btn" id="debtPairPrevBtn" ${navNeeded?'':'disabled'} aria-label="Previous Player">&#8249;</button>
-        <div class="debt-pair-title" data-pair-title>
-          <span class="active-player">${players[a].name}</span> ↔ <span class="other-player">${players[b].name}</span>
-        </div>
-        <button type="button" class="debt-pair-nav-btn" id="debtPairNextBtn" ${navNeeded?'':'disabled'} aria-label="Next Player">&#8250;</button>
+      <div class="debt-pair-title" data-pair-title>
+        <span class="active-player">${players[a].name}</span> ↔ <span class="other-player">${players[b].name}</span>
       </div>
       <div class="debt-sheet-netline" data-pair-status style="font-size:1rem;">
         You Owe <span style="color:#dc143c;">${youOwe}</span> | They Owe You <span style="color:#19a43c;">${theyOwe}</span>
       </div>
+      ${chipsRow}
     </div>
     <div class="debt-sheet-footer">
       <button type="button" class="debt-footer-btn danger" id="clearAllPairBtn">Clear All</button>
@@ -889,6 +959,9 @@ function refreshCategoryRow(cat){
     });
   }
   updateCategoryControls(cat);
+
+  // Performance: only update the active chip’s numbers; do not rebuild or auto-scroll.
+  updateActiveChipCounts();
 }
 
 function updatePairHeader(a,b){
@@ -899,6 +972,7 @@ function updatePairHeader(a,b){
   if(netLine){
     netLine.innerHTML=`You Owe <span style="color:#dc143c;">${youOwe}</span> | They Owe You <span style="color:#19a43c;">${theyOwe}</span>`;
   }
+  // Do not rebuild chips row here; keep it lightweight.
 }
 
 /* Helper: hide all active trash overlays */
@@ -996,12 +1070,75 @@ function handleDebtAdjustClick(e){
   refreshOverviewOnly();
 }
 
-function attachDebtSheetEvents(otherIdx){
+function attachDebtSheetEvents(otherIdx, suppressInitialChipScroll){
   const a=currentPlayerIndex;
   const sheet=document.getElementById('debtSheet');
   if(!sheet) return;
   sheet.querySelector('#closeSheetBtn').onclick=closeDebtSheet;
   sheet.querySelector('#clearAllPairBtn').onclick=()=>openClearDebtsOptions(a,otherIdx);
+
+  /* Chips row click-to-jump with swipe/scroll guard */
+  const chipRow = sheet.querySelector('#debtChipRow');
+  if(chipRow){
+    let startX=0, startY=0, moved=false;
+
+    const setScrolling = (on)=>{
+      if(on){
+        chipRow.dataset.scrolling = '1';
+        chipRow.classList.add('scrolling');
+      } else {
+        chipRow.dataset.scrolling = '0';
+        chipRow.classList.remove('scrolling');
+      }
+    };
+
+    chipRow.addEventListener('pointerdown', (e)=>{
+      startX=e.clientX; startY=e.clientY; moved=false;
+      setScrolling(false);
+    }, {passive:true});
+
+    chipRow.addEventListener('pointermove', (e)=>{
+      if(e.buttons!==1) return;
+      const dx=Math.abs(e.clientX-startX);
+      const dy=Math.abs(e.clientY-startY);
+      if(!moved && (dx>6 || dy>6)){
+        moved=true;
+        setScrolling(true); // indicate this is a scroll, not a tap
+      }
+    }, {passive:true});
+
+    chipRow.addEventListener('pointerup', ()=>{
+      // End of gesture; remove 'scrolling' flag shortly to avoid accidental clicks
+      setTimeout(()=>setScrolling(false), 30);
+    }, {passive:true});
+
+    chipRow.addEventListener('click', (e)=>{
+      if(chipRow.dataset.scrolling === '1'){ return; } // ignore clicks after a swipe
+      const chip = e.target.closest('.debt-chip');
+      if(!chip) return;
+      const idx = parseInt(chip.dataset.index, 10);
+      if(isNaN(idx) || idx===openDebtPlayerIndex) return;
+
+      // Preserve current horizontal scroll position before rebuild
+      const prevScrollLeft = chipRow.scrollLeft;
+
+      openDebtPlayerIndex = idx;
+      sheet.innerHTML = renderDebtSheet(openDebtPlayerIndex);
+      attachDebtSheetEvents(openDebtPlayerIndex, true); // suppress initial centering on selection
+      updateTimerDisplays();
+      refreshOverviewOnly();
+
+      // Restore previous scroll to avoid jumping, then ensure the active chip is visible (instant)
+      const newRow = document.getElementById('debtChipRow');
+      if(newRow){
+        const prevBehavior = newRow.style.scrollBehavior;
+        newRow.style.scrollBehavior = 'auto';
+        newRow.scrollLeft = prevScrollLeft;
+        newRow.style.scrollBehavior = prevBehavior;
+      }
+      ensureActiveChipVisibleInstant();
+    });
+  }
 
   sheet.querySelectorAll('.debt-group-toggle').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -1032,25 +1169,22 @@ function attachDebtSheetEvents(otherIdx){
     sheet.dataset.adjustHandlerBound='1';
   }
 
-  const prev=document.getElementById('debtPairPrevBtn');
-  const next=document.getElementById('debtPairNextBtn');
-  if(prev) prev.onclick=()=>navigateDebtPlayer(-1);
-  if(next) next.onclick=()=>navigateDebtPlayer(1);
-
-  let startX=0,startY=0,active=false;
-  const start=(x,y)=>{ startX=x; startY=y; active=true; };
-  const end=(x,y)=>{
-    if(!active) return;
-    const dx=x-startX, dy=y-startY;
-    active=false;
+  // Sheet-level swipe navigation using pointer events (ignore swipes that start on the chips row)
+  let startX=0,startY=0,swipeActive=false, swipeStartedOnChips=false;
+  sheet.addEventListener('pointerdown', (e)=>{
+    // Ignore if gesture starts on the chips row
+    swipeStartedOnChips = !!e.target.closest('#debtChipRow');
+    startX=e.clientX; startY=e.clientY; swipeActive=true;
+  });
+  sheet.addEventListener('pointerup', (e)=>{
+    if(!swipeActive){ return; }
+    swipeActive=false;
+    if(swipeStartedOnChips){ return; } // do not navigate if swipe began on chips
+    const dx=e.clientX-startX, dy=e.clientY-startY;
     if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)){
       if(dx<0) navigateDebtPlayer(1); else navigateDebtPlayer(-1);
     }
-  };
-  sheet.addEventListener('touchstart',e=>{ if(e.touches.length===1) start(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
-  sheet.addEventListener('touchend',e=>{ if(e.changedTouches.length===1) end(e.changedTouches[0].clientX,e.changedTouches[0].clientY); },{passive:true});
-  sheet.addEventListener('pointerdown',e=>{ if(e.isPrimary) start(e.clientX,e.clientY); });
-  sheet.addEventListener('pointerup',e=>{ if(e.isPrimary) end(e.clientX,e.clientY); });
+  });
 
   if(!debtSheetKeydownBound){
     window.addEventListener('keydown', debtSheetKeyHandler);
@@ -1061,6 +1195,11 @@ function attachDebtSheetEvents(otherIdx){
     if(e.target.id==='debtSheetOverlay') closeDebtSheet();
   }, { once:true });
   bindTimerClick();
+
+  // Keep the active chip in view on first open/render unless suppressed (e.g., from selection)
+  if(!suppressInitialChipScroll){
+    scrollActiveChipIntoView();
+  }
 }
 
 function debtSheetKeyHandler(e){
@@ -1089,6 +1228,7 @@ function navigateDebtPlayer(offset){
     attachDebtSheetEvents(openDebtPlayerIndex);
     updateTimerDisplays();
     refreshOverviewOnly();
+    scrollActiveChipIntoView();
   }
 }
 
@@ -1164,6 +1304,7 @@ function rebuildDebtSheet(otherIdx){
     attachDebtSheetEvents(otherIdx);
     updateTimerDisplays();
     refreshOverviewOnly();
+    scrollActiveChipIntoView();
   }
 }
 
@@ -1569,7 +1710,6 @@ function calculateFinalTaxes(){
     const tie = winners.length > 1;
     const msg=getTaxBracketMessage(p.coins,p.properties);
 
-    // iOS fix: render shareholders with 'winner' styling (badge still says SHAREHOLDER)
     const winnerClass = isWinner
       ? (landlordMode ? 'landlord' : 'winner')
       : '';
