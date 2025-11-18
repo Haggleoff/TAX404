@@ -277,7 +277,7 @@ function buildActiveCardSection(p){
         <div class="normal-cards-container" id="normalCardsContainer">${blocks}</div>
         <button type="button" id="plusNormal" class="btn-round" aria-label="Increase normal donations">+</button>
       </div>
-      <div class="donate-label-inline" style="margin-top:0;">Power Cards or Cash Donated</div>
+      <div class="donate-label-inline" style="margin-top:0;">Power Cards or Haggies Donated</div>
       <div class="donate-row buttons-row" style="margin-bottom:0.4rem;">
         <button type="button" id="minusPower" class="btn-round alt" aria-label="Decrease power donations">-</button>
         <div class="power-circle-container">
@@ -408,6 +408,12 @@ function updateDonationButtonsState(){
     charity.setAttribute('aria-pressed', tookCharityThisTurn? 'true':'false');
     charity.classList.toggle('danger', tookCharityThisTurn);
     charity.textContent='Took from Charity';
+
+    // Show the "Took from Charity" button ONLY when the user hasn't entered any donation values this turn.
+    const hasDonationEntry = (normalDonated > 0) || (powerDonated > 0);
+    charity.style.visibility = hasDonationEntry ? 'hidden' : 'visible';
+    charity.style.pointerEvents = hasDonationEntry ? 'none' : 'auto';
+    charity.setAttribute('aria-hidden', hasDonationEntry ? 'true' : 'false');
   }
 }
 function bindDonationControls(){

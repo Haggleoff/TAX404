@@ -473,6 +473,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   letter-spacing:1.4px;
   fill:var(--color-accent);
   text-transform:uppercase;
+  transition:fill .25s ease;
 }
 .tax-breaks-badge .tb-value {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -485,7 +486,39 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   background:radial-gradient(circle at 38% 32%, #5a4935 0%, #3a2e24 62%, #261f19 100%);
   box-shadow:inset 0 0 0 2px #d4af7f33,0 0 0 2px #161616,0 4px 12px #000b;
 }
-.tax-breaks-badge.earned .tb-value { animation:tbValuePop 0.65s ease; }
+/* Flare ring pseudo-element (animated on earned) */
+.tax-breaks-badge .tb-value::after {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  box-shadow:0 0 0 0 transparent;
+  pointer-events:none;
+}
+/* Brighter earned state: stronger glow + layered drop-shadows */
+.tax-breaks-badge.inline.earned {
+  filter: drop-shadow(0 2px 5px #0008)
+          drop-shadow(0 0 16px rgba(212,175,127,0.8))
+          drop-shadow(0 0 32px rgba(212,175,127,0.55));
+}
+.tax-breaks-badge.earned .tb-text {
+  fill:#f0dbac;
+}
+.tax-breaks-badge.earned .tb-value {
+  animation:tbValuePop 0.65s ease;
+  box-shadow:
+    inset 0 0 0 2px #d4af7f66,
+    0 0 0 2px #161616,
+    0 4px 12px #000b,
+    0 0 18px 6px rgba(212,175,127,0.55);
+}
+/* Trigger brighter gold flare when value increases */
+.tax-breaks-badge.earned .tb-value::after { animation:valuePulseGold .85s ease-out; }
+
 @keyframes tbRotate { from { transform:rotate(0deg);} to { transform:rotate(360deg);} }
 @keyframes tbValuePop { 0%{transform:translate(-50%,-50%) scale(.85);} 40%{transform:translate(-50%,-50%) scale(1.18);} 100%{transform:translate(-50%,-50%) scale(1);} }
 .player-card:not(.active) .tax-breaks-badge.inline .tb-value { filter:grayscale(.18) brightness(.93); }
@@ -581,6 +614,24 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 /* Pulses */
 @keyframes valuePulseGreen { 0% { box-shadow:0 0 0 0 #19a43c55; } 100% { box-shadow:0 0 0 18px transparent; } }
 @keyframes valuePulseRed { 0% { box-shadow:0 0 0 0 #dc143c55; } 100% { box-shadow:0 0 0 18px transparent; } }
+/* Brighter gold pulse for Tax Breaks badge */
+@keyframes valuePulseGold {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(212,175,127,0.85),
+      0 0 20px 8px rgba(212,175,127,0.55);
+  }
+  60% {
+    box-shadow:
+      0 0 0 18px rgba(212,175,127,0.0),
+      0 0 26px 12px rgba(212,175,127,0.35);
+  }
+  100% {
+    box-shadow:
+      0 0 0 30px transparent,
+      0 0 0 30px transparent;
+  }
+}
 .value-pulse-green { animation:valuePulseGreen .7s ease-out; }
 .value-pulse-red { animation:valuePulseRed .7s ease-out; }
 
@@ -1090,7 +1141,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   padding:1.2rem 1rem 2rem; gap:1rem;
 }
 .exit-screen-wrapper h2 {
-  margin:0; font-size:2rem; letter-spacing:.6px; color:var(--color-accent); font-family:var(--font-display);
+  margin:0; font-size:2rem; letter-spacing:.6px; color:#d4af7f; font-family:var(--font-display);
 }
 .exit-screen-wrapper p {
   margin:0; font-size:1rem; max-width:620px; line-height:1.4; color:#888;
