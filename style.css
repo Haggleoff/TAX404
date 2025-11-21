@@ -47,6 +47,10 @@
    - Added poof animation for losing an in-progress normal card streak when Charity is taken.
    UPDATED (2025-11-21 ENDGAME TAXES BUTTON RED):
    - Endgame Taxes button styled in red (danger theme).
+   UPDATED (2025-11-21 TOOLTIP OVERLAP FIX):
+   - Raised z-index of tax breaks badge & tooltip to prevent being covered by debt summary bar.
+   UPDATED (2025-11-21 OUTSTANDING DEBTS OVERSCROLL SUPPRESSION):
+   - Added overscroll-behavior containment and touch-action control ONLY to Outstanding Debts bottom sheet scroll area (.outstanding-wrapper).
    ========================================================= */
 
 :root {
@@ -594,7 +598,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 
 /* Tax Breaks Badge (Base) */
-.tax-breaks-badge.inline { position:relative; filter:drop-shadow(0 2px 5px #0008); overflow:visible; }
+.tax-breaks-badge.inline {
+  position:relative;
+  filter:drop-shadow(0 2px 5px #0008);
+  overflow:visible;
+  z-index:150; /* Raised to float tooltip over debt summary bar */
+}
 .tax-breaks-badge .tb-svg { width:100%; height:100%; animation:tbRotate 14s linear infinite; overflow:visible; display:block; }
 .tax-breaks-badge .tb-text {
   font-family:var(--font-display);
@@ -679,7 +688,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   opacity:0;
   pointer-events:none;
   transition:opacity .22s, transform .22s;
-  z-index:80;
+  z-index:500; /* Elevated above sibling bars */
   user-select:none;
 }
 .tb-tooltip::after {
@@ -713,7 +722,13 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 
 /* Outstanding Debtors Confirmation */
-.outstanding-wrapper { max-height:360px; overflow-y:auto; padding-right:0.35rem; }
+.outstanding-wrapper {
+  max-height:360px;
+  overflow-y:auto;
+  padding-right:0.35rem;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
 .debtor-block {
   background:#2a2a2a; border:2px solid #3a3a3a; border-radius:14px;
   padding:.65rem .75rem .55rem; margin-bottom:0.7rem; cursor:pointer;
