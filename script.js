@@ -37,6 +37,23 @@
  *   when there is NO debt (both directions zero) between the active player
  *   and the opponent column currently in focus (centered column).
  *   It becomes enabled only when at least one category has a non-zero debt.
+ *
+ * UPDATED (2025-11-21 THUMBNAIL CLICK ZERO-DEBT GUARD):
+ * - If a category thumbnail is clicked and that category has zero net debt
+ *   between the players, do NOT show the X overlay.
+ *
+ * UPDATED (2025-11-21 SCROLL ARROW INTRO):
+ * - Added a translucent pulsing arrow indicating horizontal scroll hint
+ *   for QuickPad when >2 players.
+ *
+ * UPDATED (2025-11-21 ARROWHEAD REVISION):
+ * - Scroll hint changed to standalone thicker arrowhead (no circle, no tail).
+ *
+ * UPDATED (2025-11-21 ARROW SYMBOL REPLACEMENT):
+ * - Scroll hint arrow uses ❯ character.
+ *
+ * UPDATED (2025-11-21 ARROW POSITION MOVE):
+ * - Scroll hint arrow moved to the right side middle of the player column header box.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -59,6 +76,9 @@ let normalDonated = 0;
 let powerDonated = 0;
 let tempProgress = 0;
 let tookCharityThisTurn = false;
+
+/* Scroll Arrow Session State */
+let quickPadArrowDismissed = false;
 
 /* Debt Data */
 const debtCategories = [
@@ -721,11 +741,12 @@ function openQuickPad(){
   document.body.classList.add('modal-open');
   requestAnimationFrame(()=>pad.classList.add('open'));
   quickPadOpen=true;
+  maybeAddScrollHintArrow();
   bindQuickPadEvents();
   bindTimerClick();
   updateTimerDisplays();
   updateQuickPadTotals();
-  updateClearDebtsButtonState(); // Initial state
+  updateClearDebtsButtonState();
 }
 
 function closeQuickPad(){
@@ -806,7 +827,21 @@ function buildQuickPadContent(){
   `;
 }
 
-/* ---------- New helper: detect if any debt between players ---------- */
+/* Scroll hint arrow creation (moved inside first column header) */
+function maybeAddScrollHintArrow(){
+  if(players.length <= 2) return;
+  if(quickPadArrowDismissed) return;
+  if(document.getElementById('quickPadScrollArrow')) return;
+  const header = document.querySelector('#quickPadColumns .qp-column-header');
+  if(!header) return;
+  const arrow=document.createElement('div');
+  arrow.id='quickPadScrollArrow';
+  arrow.className='quick-pad-scroll-arrow';
+  arrow.setAttribute('aria-hidden','true');
+  header.appendChild(arrow);
+}
+
+/* ---------- Debt existence helper ---------- */
 function hasAnyDebtBetween(a,b){
   if(a==null || b==null) return false;
   for(const cat of debtCategories){
@@ -815,7 +850,7 @@ function hasAnyDebtBetween(a,b){
   return false;
 }
 
-/* ---------- New helper: update Clear Debts button state ---------- */
+/* ---------- Clear Debts footer button state ---------- */
 function updateClearDebtsButtonState(){
   if(!quickPadOpen) return;
   const btn=document.getElementById('quickPadClearBtn');
@@ -826,8 +861,7 @@ function updateClearDebtsButtonState(){
     return;
   }
   const active=currentPlayerIndex;
-  const hasDebt = hasAnyDebtBetween(active,opponentIndex);
-  btn.disabled = !hasDebt;
+  btn.disabled = !hasAnyDebtBetween(active,opponentIndex);
 }
 
 function bindQuickPadEvents(){
@@ -848,7 +882,6 @@ function bindQuickPadEvents(){
   pad.addEventListener('click', handleQuickPadClick);
   window.addEventListener('keydown', quickPadKeyHandler);
 
-  /* Update clear button when scrolling columns (focus may change) */
   const columns=document.getElementById('quickPadColumns');
   if(columns){
     let scrollRAF=null;
@@ -856,6 +889,12 @@ function bindQuickPadEvents(){
       if(scrollRAF) cancelAnimationFrame(scrollRAF);
       scrollRAF=requestAnimationFrame(()=>{
         updateClearDebtsButtonState();
+        const arrow=document.getElementById('quickPadScrollArrow');
+        if(arrow && !quickPadArrowDismissed && columns.scrollLeft>0){
+            arrow.classList.add('hide');
+            quickPadArrowDismissed=true;
+            setTimeout(()=>arrow && arrow.remove(),600);
+        }
       });
     }, { passive:true });
   }
@@ -863,23 +902,24 @@ function bindQuickPadEvents(){
 
 let lastQuickPadOpponent=null;
 
-/* Modified to hide X overlay on outside clicks + update clear button */
+/* ---------- QuickPad click handler ---------- */
 function handleQuickPadClick(e){
   const pad=document.getElementById('quickPad');
   if(!pad) return;
 
-  // Outside thumbnail/clear button: hide overlays
   if(!e.target.closest('.qp-icon') && !e.target.closest('.qp-clear-btn')){
     pad.querySelectorAll('.qp-icon.show-clear').forEach(ic=>ic.classList.remove('show-clear'));
   }
 
-  /* Clear button clicked */
+  /* Clear button */
   const clearBtn=e.target.closest('.qp-clear-btn');
   if(clearBtn){
     const icon=clearBtn.closest('.qp-icon');
     if(icon){
       const opponentIndex=parseInt(icon.dataset.opponent,10);
-      const cat=icon.dataset.cat;
+      const catRaw=icon.dataset.cat;
+      const rowRef=icon.closest('.qp-cat-row');
+      const cat=rowRef? rowRef.dataset.cat : catRaw;
       if(!isNaN(opponentIndex) && cat){
         clearSingleCategory(currentPlayerIndex, opponentIndex, cat);
         updateQuickPadRow(opponentIndex, cat);
@@ -893,19 +933,32 @@ function handleQuickPadClick(e){
     return;
   }
 
-  /* Thumbnail clicked (toggle clear overlay) */
+  /* Thumbnail toggle */
   const thumb=e.target.closest('.qp-icon');
   if(thumb){
+    const opponentIndex=parseInt(thumb.dataset.opponent,10);
+    const catRaw=thumb.dataset.cat;
+    const rowRef=thumb.closest('.qp-cat-row');
+    const cat=rowRef? rowRef.dataset.cat : catRaw;
+    if(!isNaN(opponentIndex) && cat){
+      const net=getNetDebtValue(currentPlayerIndex,opponentIndex,cat);
+      if(net===0){
+        thumb.classList.remove('show-clear');
+        updateClearDebtsButtonState();
+        return;
+      }
+    }
     if(thumb.classList.contains('show-clear')){
       thumb.classList.remove('show-clear');
     } else {
       pad.querySelectorAll('.qp-icon.show-clear').forEach(ic=>ic.classList.remove('show-clear'));
       thumb.classList.add('show-clear');
     }
+    updateClearDebtsButtonState();
     return;
   }
 
-  /* Adjust debt buttons */
+  /* Adjust buttons */
   const btn=e.target.closest('.qp-btn');
   if(!btn) {
     updateClearDebtsButtonState();
@@ -961,8 +1014,6 @@ function updateQuickPadRow(opponentIndex, cat){
     if(net<prev) { row.classList.add('pulse-red'); setTimeout(()=>row.classList.remove('pulse-red'),700); }
   } else {
     row.classList.add('neutral');
-  }
-  if(net===0){
     const icon=row.querySelector('.qp-icon');
     if(icon) icon.classList.remove('show-clear');
   }
@@ -1031,7 +1082,6 @@ function showClearDebtsDialog(){
     customPopup("No opponent column detected.");
     return;
   }
-  // Guard: if no debt, do nothing (button should be disabled anyway)
   if(!hasAnyDebtBetween(currentPlayerIndex, opponentIndex)){
     return;
   }
@@ -1141,7 +1191,7 @@ function resetDonationTimer(){
 if(typeof window!=='undefined') window.resetDonationTimer=resetDonationTimer;
 
 /* =========================================================
-   USER-SUPPLIED ENDGAME & OUTSTANDING DEBTS (integrated)
+   Endgame & Outstanding Debts
    ========================================================= */
 function showEndgame(){
   commitActivePlayerTurn();
@@ -1247,7 +1297,7 @@ function showOutstandingDebtsPopup(data){
   cancel.onclick  = ()=>{ overlay.style.display='none'; };
 }
 
-/* ---------- Endgame Input Cap Helpers (DEBOUNCED) ---------- */
+/* ---------- Endgame Input Cap Helpers ---------- */
 function getPropertyCap(){
   return (players.length + 1) + players.length;
 }
@@ -1837,10 +1887,10 @@ window.dismissDisclaimer=function(){
   updateAddPlayerButtonAppearance();
 };
 
-/* Legacy closeDebtSheet stub (no-op) */
+/* Legacy placeholder */
 function closeDebtSheet(){}
 
-/* Expose key methods */
+/* ---------- Expose key methods ---------- */
 window.openQuickPad=openQuickPad;
 window.showEndgame=showEndgame;
 window.loadEndgame=loadEndgame;
