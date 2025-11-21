@@ -1,58 +1,35 @@
 /* =========================================================
    TAX404 Unified Style System
    (Integrated Turn Layout – Active Pop + Debt Sheet + Animations)
-   UPDATED (2025-09-27):
-   - Passive debt summary bar visible on inactive player cards (.debt-summary-bar.passive).
-   - Active player debt summary bar repositioned (handled in markup).
-   - Added interactive Tax Breaks Badge tooltip (active card only):
-       * Click (or Enter/Space) to toggle.
-       * Tooltip class: .tb-tooltip
-       * Open state: .tax-breaks-badge.inline.tb-open .tb-tooltip
-   UPDATED (2025-09-27 LATE PATCH):
-   - Unified tooltip system for Tax Breaks badge and Normal Cards info icon.
-   - Info icon now click / keyboard toggle (no pure hover), same visual style as tax breaks tooltip.
-   - Outside click / Escape closes any open tooltip.
-   - Tooltip smart positioning + flip above if near viewport bottom; horizontal shift to avoid clipping.
-   UPDATED (2025-09-28):
-   - Added .add-player-maxed state styling for disabled visual at 7-player cap (still clickable for popup).
-   UPDATED (2025-09-29):
-   - Added Landlord winner styling (tie resolved by properties) with teal theme.
-   UPDATED (2025-11-02):
-   - Debt Sheet quick-switch chips row styling (.debt-chip-row, .debt-chip). Centered layout.
-   UPDATED (2025-11-20):
-   - Added Outstanding Debt QuickPad (.quick-pad) replacing per-pair debt sheet workflow.
-   - Multi-opponent columns with category rows & dual directional buttons.
-   UPDATED (2025-11-20 PATCH):
-   - QuickPad vertical overflow fix: allow full column length (overflow-y scroll instead of clipping).
-   UPDATED (2025-11-20 PATCH 2):
-   - Extended QuickPad columns to fully contain all categories.
-   UPDATED (2025-11-20 PATCH 3):
-   - Increased QuickPad column min-height further and bottom padding to ensure all categories remain inside column borders.
-   UPDATED (2025-11-20 PATCH 4):
-   - Tuned QuickPad column height down (min-height 1420px, reduced bottom paddings) so column extends just slightly beyond category list.
-   UPDATED (2025-11-20 STICKY HEADER):
-   - Made QuickPad opponent summary header (.qp-column-header) sticky while scrolling categories.
-   UPDATED (2025-11-20 TIMER IN QUICKPAD):
-   - Added active turn timer display (.quick-pad-timer) to QuickPad header (top-right) with full functionality.
-   UPDATED (2025-11-20 CENTER SINGLE OPPONENT):
-   - Center QuickPad column when only one opponent (2-player game).
-   UPDATED (2025-11-20 TOTALS IN QUICKPAD HEADER):
-   - Added aggregated totals line (.quick-pad-total-line) under Record Debts title in QuickPad.
-   UPDATED (2025-11-21 TRADE STYLE DEBT BAR):
-   - Debt summary bar restyled into dual-segment trade button (.debt-trade-bar) with red (You Owe) + green (You Collect).
-   UPDATED (2025-11-21 TRADE BAR GAP FIX):
-   - Removed inner gaps (edge slivers & center wedge). Segments now flex to fill container.
-   - Replaced clip-path divider with seamless angled overlay pseudo-element.
-   UPDATED (2025-11-21 POOF ANIMATION):
-   - Added poof animation for losing an in-progress normal card streak when Charity is taken.
-   UPDATED (2025-11-21 ENDGAME TAXES BUTTON RED):
-   - Endgame Taxes button styled in red (danger theme).
-   UPDATED (2025-11-21 TOOLTIP OVERLAP FIX):
-   - Raised z-index of tax breaks badge & tooltip to prevent being covered by debt summary bar.
-   UPDATED (2025-11-21 OUTSTANDING DEBTS OVERSCROLL SUPPRESSION):
-   - Added overscroll-behavior containment and touch-action control ONLY to Outstanding Debts bottom sheet scroll area (.outstanding-wrapper).
-   UPDATED (2025-11-21 QUICKPAD FOOTER NO-WRAP):
-   - QuickPad Clear All & Done buttons forced side-by-side on mobile (flex-wrap:nowrap).
+
+   UPDATED HISTORY
+   2025-09-27:
+     - Passive debt summary bar visible on inactive player cards (.debt-summary-bar.passive).
+     - Active player debt summary bar repositioned (handled in markup).
+     - Added interactive Tax Breaks Badge tooltip (active card only).
+   2025-09-27 (Late Patch):
+     - Unified tooltip system for Tax Breaks badge and Normal Cards info icon.
+   2025-09-28:
+     - Added .add-player-maxed state styling for disabled visual at 7-player cap.
+   2025-09-29:
+     - Added Landlord winner styling (property tie-break outcome).
+   2025-11-02:
+     - Debt Sheet quick-switch chips row styling.
+   2025-11-20:
+     - Added Outstanding Debt QuickPad (.quick-pad) multi-opponent workflow.
+   2025-11-20 Patch Series:
+     - Vertical overflow fixes, column height tuning, sticky headers, single-opponent centering.
+     - Added aggregated totals line & active turn timer inside QuickPad.
+   2025-11-21:
+     - Trade style debt summary bar (dual segment) + gapless divider.
+     - Poof animation for losing in-progress streak when Charity selected.
+     - Tooltip overlap z-index fix.
+     - Outstanding Debts bottom sheet overscroll suppression.
+     - QuickPad footer buttons forced side-by-side (nowrap).
+     - Clear Debts dialog and naming revisions.
+     - Category thumbnail clear (X) interaction added.
+   2025-11-21 (Final Overlay Patch):
+     - X clear button now fills entire thumbnail (full overlay).
    ========================================================= */
 
 :root {
@@ -153,7 +130,7 @@ button,
 .card-btn {
   font-family:var(--font-display);
   border:none;
-  border-radius:var(--radius-lg);
+  border-radius:var(--radius-xl);
   cursor:pointer;
   letter-spacing:.3px;
   transition:background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
@@ -369,7 +346,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   font-size:0.92rem;
   letter-spacing:.45px;
   color:#d9d9d9;
-  margin-top=.2rem;
+  margin-top:.2rem;
 }
 .donation-section.inactive .normal-cards-container {
   pointer-events:none;
@@ -386,7 +363,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .donation-section.inactive .power-circle-container,
 .donation-section.inactive .donate-row.buttons-row { display:none !important; }
 
-/* Passive debt summary bar styling (legacy base retained) */
+/* Passive debt summary bar styling */
 .debt-summary-bar.passive {
   cursor:default;
   pointer-events:none;
@@ -477,7 +454,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .info-icon:focus-visible { box-shadow:0 0 0 2px #000, 0 0 0 4px #d4af7f55; }
 
-/* Debt Summary Bar base (legacy) */
+/* Debt Summary Bar base */
 .debt-summary-bar {
   background:var(--color-surface);
   border:2px solid var(--color-border);
@@ -501,7 +478,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .ds-owe { color:var(--color-danger); }
 .ds-collect { color:var(--color-success); }
 
-/* Dual-Segment Trade Style Debt Summary Bar (gapless) */
+/* Dual-Segment Trade Style Debt Summary Bar */
 .debt-summary-bar.debt-trade-bar {
   background:#1d1d1d;
   display:flex;
@@ -541,9 +518,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   background:linear-gradient(135deg,#1f5e30 0%, #2f7d46 100%);
   box-shadow:inset 0 0 0 2px #2f7d4655;
 }
-
-/* Center angled divider (pseudo-element) */
-.debt-summary-bar.debt-trade-bar:not(.passive)::before {
+.debt-summary-bar.debt-trade-bar:not(.passive)::before,
+.debt-summary-bar.debt-trade-bar.passive::before {
   content:"";
   position:absolute;
   top:0; bottom:0;
@@ -554,21 +530,9 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 0 6px #000a;
   pointer-events:none;
 }
-.debt-summary-bar.debt-trade-bar.passive::before {
-  content:"";
-  position:absolute;
-  top:0; bottom:0;
-  left:50%;
-  width:44px;
-  transform:translateX(-50%) skewX(-18deg);
-  background:#181818;
-  opacity:.55;
-  pointer-events:none;
-}
-
+.debt-summary-bar.debt-trade-bar.passive::before { background:#181818; opacity:.55; }
 .debt-summary-bar.debt-trade-bar:not(.passive):hover .trade-seg { filter:brightness(1.08); }
 .debt-summary-bar.debt-trade-bar:active .trade-seg { filter:brightness(.92); }
-
 .debt-summary-bar.debt-trade-bar .trade-seg .ds-owe,
 .debt-summary-bar.debt-trade-bar .trade-seg .ds-collect {
   font-size:.85rem;
@@ -599,12 +563,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   100% { opacity:0; transform:scale(.6); filter:blur(6px); }
 }
 
-/* Tax Breaks Badge (Base) */
+/* Tax Breaks Badge */
 .tax-breaks-badge.inline {
   position:relative;
   filter:drop-shadow(0 2px 5px #0008);
   overflow:visible;
-  z-index:150; /* Raised to float tooltip over debt summary bar */
+  z-index:150;
 }
 .tax-breaks-badge .tb-svg { width:100%; height:100%; animation:tbRotate 14s linear infinite; overflow:visible; display:block; }
 .tax-breaks-badge .tb-text {
@@ -653,13 +617,10 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
     0 0 18px 6px rgba(212,175,127,0.55);
 }
 .tax-breaks-badge.earned .tb-value::after { animation:valuePulseGold .85s ease-out; }
-
 @keyframes tbRotate { from { transform:rotate(0deg);} to { transform:rotate(360deg);} }
 @keyframes tbValuePop { 0%{transform:translate(-50%,-50%) scale(.85);} 40%{transform:translate(-50%,-50%) scale(1.18);} 100%{transform:translate(-50%,-50%) scale(1);} }
 .player-card:not(.active) .tax-breaks-badge.inline .tb-value { filter:grayscale(.18) brightness(.93); }
 .player-card.active .tax-breaks-badge.inline .tb-value { filter:none; }
-
-/* Tax Breaks Badge (Interactive Tooltip Enhancements) */
 .tax-breaks-badge.inline[data-interactive="1"] { cursor:pointer; outline:none; }
 .tax-breaks-badge.inline[data-interactive="1"]:hover .tb-value {
   background:radial-gradient(circle at 38% 32%, #705a40 0%, #4b392b 62%, #2d241d 100%);
@@ -690,7 +651,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   opacity:0;
   pointer-events:none;
   transition:opacity .22s, transform .22s;
-  z-index:500; /* Elevated above sibling bars */
+  z-index:500;
   user-select:none;
 }
 .tb-tooltip::after {
@@ -975,8 +936,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   padding:1rem .95rem 1.1rem;
   box-shadow:0 10px 30px #000a, 0 0 0 1px #000 inset;
   display:block;
-  visibility:visible;
-  opacity:1;
   text-align:center;
   min-height:260px;
   flex:1 1 300px;
@@ -993,7 +952,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .fr2-card.landlord { border-color:#24c2a8; box-shadow:0 0 0 2px #24c2a855, 0 12px 32px #000c; }
 
 .fr2-badge {
-  position:static;
   background:#2a2520; color:#ead6b7;
   border:2px solid #c9a36e;
   padding:.24rem .75rem .26rem;
@@ -1131,12 +1089,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 #outstandingProceedBtn:disabled:focus { outline:none; }
 
-@media (prefers-reduced-motion:reduce){
-  .tax-breaks-badge .tb-svg { animation:none !important; }
-  .flicker-start { animation:none; }
-}
-
-/* ---------- Outstanding Debt QuickPad (NEW) ---------- */
+/* ---------- Outstanding Debt QuickPad ---------- */
 #quickPadOverlay {
   position:fixed; inset:0;
   display:none;
@@ -1310,12 +1263,51 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   align-items:center;
   justify-content:center;
   box-shadow:0 2px 6px #0008;
+  position:relative;
+  cursor:pointer;
 }
 .qp-icon img {
   width:100%; height:100%;
   object-fit:contain;
   border-radius:14px;
   filter:brightness(.95);
+  pointer-events:none;
+}
+
+/* FULL-SIZE CLEAR BUTTON OVERLAY (thumbnail clear) */
+.qp-icon.show-clear img {
+  opacity:0.28;
+  filter:blur(1px) brightness(.7);
+  transition:opacity .18s, filter .18s;
+}
+.qp-clear-btn {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:none;
+  background:rgba(90,37,37,0.85);
+  color:#f5dede;
+  font-family:var(--font-display);
+  font-size:1.9rem;
+  line-height:1;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  border-radius:14px;
+  box-shadow:0 2px 6px #000a, inset 0 0 0 2px #862d2d;
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+  transition:background .18s, transform .18s, box-shadow .18s;
+  user-select:none;
+}
+.qp-icon.show-clear .qp-clear-btn { display:flex; }
+.qp-clear-btn:hover { background:rgba(122,51,51,0.92); }
+.qp-clear-btn:active { transform:translateY(1px); background:rgba(138,58,58,0.95); }
+.qp-clear-btn:focus-visible {
+  outline:2px solid #f5dede;
+  outline-offset:2px;
 }
 
 .qp-name { font-size:.95rem; color:#ededed; white-space:nowrap; }
@@ -1363,10 +1355,18 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .qp-column { flex:0 0 300px; min-height:1420px; }
   .qp-cat-row { grid-template-columns:42px 1fr 62px 88px; }
   .qp-icon { width:40px; height:40px; }
+  .qp-clear-btn { font-size:1.7rem; }
   .qp-name { font-size:.85rem; }
   .qp-value { font-size:.85rem; }
   .qp-btn { font-size:.85rem; padding:.5rem 0; }
   .quick-pad-timer { font-size:1.9rem; min-width:54px; }
+}
+
+/* Reduced motion (repeated for QuickPad specifics) */
+@media (prefers-reduced-motion:reduce){
+  .tax-breaks-badge .tb-svg { animation:none !important; }
+  .flicker-start { animation:none; }
+  .qp-clear-btn { transition:none; }
 }
 
 /* (End of file) */

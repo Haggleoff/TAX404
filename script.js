@@ -17,6 +17,26 @@
  * UPDATED (2025-11-21 POOF ANIMATION):
  * - Added visual "poof" of in-progress normal card streak blocks when
  *   Charity is selected and an active (partial) streak exists.
+ *
+ * UPDATED (2025-11-21 CLEAR DEBTS DIALOG TEXT REVISIONS):
+ * - Clear Debts dialog button texts revised per user instructions.
+ *
+ * UPDATED (2025-11-21 QUICKPAD CLEAR BUTTON RENAME):
+ * - QuickPad footer "Clear All" renamed to "Clear Debts".
+ *
+ * UPDATED (2025-11-21 CATEGORY THUMB CLEAR):
+ * - Clicking category thumbnail toggles an X button overlay.
+ * - X button clears that specific category debt (both directions).
+ *
+ * UPDATED (2025-11-21 HIDE X ON OUTSIDE CLICK):
+ * - If user clicks anywhere outside a thumbnail (or its clear button),
+ *   any visible X overlay is hidden.
+ *
+ * UPDATED (2025-11-21 CONDITIONAL CLEAR DEBTS BUTTON ENABLE):
+ * - "Clear Debts" footer button in QuickPad is now disabled (greyed out)
+ *   when there is NO debt (both directions zero) between the active player
+ *   and the opponent column currently in focus (centered column).
+ *   It becomes enabled only when at least one category has a non-zero debt.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -196,7 +216,7 @@ function buildTaxBreaksBadge(value, interactive=false){
     </div>`;
 }
 
-/* ---------- Debt Summary Bars (trade style, text simplified) ---------- */
+/* ---------- Debt Summary Bars ---------- */
 function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true } = {}){
   const { owe, collect } = aggregateTotals(idx);
   const labelOwe = `Owe: ${owe}`;
@@ -389,7 +409,7 @@ function updateDonationButtonsState(){
   if(minusN) minusN.disabled = disabled || normalDonated===0;
   if(plusN)  plusN.disabled  = disabled || (normalDonated+tempProgress)>=20;
   if(minusP) minusP.disabled = disabled || powerDonated===0;
-  if(plusP)  plusP.disabled  = disabled || powerDonated>=20;
+  if(plusP) plusP.disabled  = disabled || powerDonated>=20;
 
   [minusN,plusN,minusP,plusP].forEach(el=>{
     if(!el) return;
@@ -425,21 +445,18 @@ function bindDonationControls(){
     const wasCharity = tookCharityThisTurn;
     tookCharityThisTurn=!tookCharityThisTurn;
 
-    // Trigger poof animation when turning ON charity and an in-progress streak exists
     if(!wasCharity && tookCharityThisTurn && tempProgress > 0){
       const container = activeCard.querySelector('#normalCardsContainer');
       if(container){
         const prevBlocks = container.querySelectorAll('.progress-prev');
         prevBlocks.forEach(b=>b.classList.add('poof-out'));
-        // After animation, replace with empty placeholders
         setTimeout(()=>{
-          if(tookCharityThisTurn){ // still active
+          if(tookCharityThisTurn){
             container.innerHTML = '<div class="donate-block-empty"></div>'.repeat(5);
           }
         },460);
       }
     } else if(wasCharity && !tookCharityThisTurn){
-      // Rebuild visuals when charity toggled off to restore progress
       updateDonationDynamic();
     }
 
@@ -453,7 +470,6 @@ function updateDonationDynamic(){
   if(blocksContainer && !tookCharityThisTurn){
     blocksContainer.innerHTML=blocks;
   } else if(blocksContainer && tookCharityThisTurn){
-    // Ensure display remains cleared if charity active
     blocksContainer.innerHTML='<div class="donate-block-empty"></div>'.repeat(5);
   }
   const powerCircle=activeCard.querySelector('#powerCircle');
@@ -709,6 +725,7 @@ function openQuickPad(){
   bindTimerClick();
   updateTimerDisplays();
   updateQuickPadTotals();
+  updateClearDebtsButtonState(); // Initial state
 }
 
 function closeQuickPad(){
@@ -744,13 +761,16 @@ function buildQuickPadContent(){
       const displayVal = net===0?'—': (net>0?`+${net}`:`${net}`);
       catRows += `
         <div class="qp-cat-row ${stateClass}" data-opponent="${i}" data-cat="${cat}">
-          <div class="qp-icon"><img src="${getImageName(cat)}" alt="${escapeHtml(cat)}"></div>
-            <div class="qp-name">${escapeHtml(cat)}</div>
-            <div class="qp-value" data-value>${displayVal}</div>
-            <div class="qp-actions">
-              <button type="button" class="qp-btn qp-owe" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▼</button>
-              <button type="button" class="qp-btn qp-collect" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▲</button>
-            </div>
+          <div class="qp-icon" data-opponent="${i}" data-cat="${escapeHtml(cat)}">
+            <img src="${getImageName(cat)}" alt="${escapeHtml(cat)}">
+            <button type="button" class="qp-clear-btn" aria-label="Clear debt for ${escapeHtml(cat)}" tabindex="-1">✕</button>
+          </div>
+          <div class="qp-name">${escapeHtml(cat)}</div>
+          <div class="qp-value" data-value>${displayVal}</div>
+          <div class="qp-actions">
+            <button type="button" class="qp-btn qp-owe" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▼</button>
+            <button type="button" class="qp-btn qp-collect" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▲</button>
+          </div>
         </div>`;
     });
 
@@ -780,10 +800,34 @@ function buildQuickPadContent(){
     </div>
     <div class="${columnsClass}" id="quickPadColumns">${columnsHtml}</div>
     <div class="quick-pad-footer">
-      <button type="button" class="debt-footer-btn danger" id="quickPadClearBtn">Clear All</button>
+      <button type="button" class="debt-footer-btn danger" id="quickPadClearBtn">Clear Debts</button>
       <button type="button" class="debt-footer-btn primary" id="quickPadDoneBtn">Done</button>
     </div>
   `;
+}
+
+/* ---------- New helper: detect if any debt between players ---------- */
+function hasAnyDebtBetween(a,b){
+  if(a==null || b==null) return false;
+  for(const cat of debtCategories){
+    if((debts[a][b][cat]||0)>0 || (debts[b][a][cat]||0)>0) return true;
+  }
+  return false;
+}
+
+/* ---------- New helper: update Clear Debts button state ---------- */
+function updateClearDebtsButtonState(){
+  if(!quickPadOpen) return;
+  const btn=document.getElementById('quickPadClearBtn');
+  if(!btn) return;
+  const opponentIndex=getFocusedQuickPadOpponent();
+  if(opponentIndex==null){
+    btn.disabled=true;
+    return;
+  }
+  const active=currentPlayerIndex;
+  const hasDebt = hasAnyDebtBetween(active,opponentIndex);
+  btn.disabled = !hasDebt;
 }
 
 function bindQuickPadEvents(){
@@ -803,17 +847,77 @@ function bindQuickPadEvents(){
 
   pad.addEventListener('click', handleQuickPadClick);
   window.addEventListener('keydown', quickPadKeyHandler);
+
+  /* Update clear button when scrolling columns (focus may change) */
+  const columns=document.getElementById('quickPadColumns');
+  if(columns){
+    let scrollRAF=null;
+    columns.addEventListener('scroll', ()=>{
+      if(scrollRAF) cancelAnimationFrame(scrollRAF);
+      scrollRAF=requestAnimationFrame(()=>{
+        updateClearDebtsButtonState();
+      });
+    }, { passive:true });
+  }
 }
 
 let lastQuickPadOpponent=null;
 
+/* Modified to hide X overlay on outside clicks + update clear button */
 function handleQuickPadClick(e){
+  const pad=document.getElementById('quickPad');
+  if(!pad) return;
+
+  // Outside thumbnail/clear button: hide overlays
+  if(!e.target.closest('.qp-icon') && !e.target.closest('.qp-clear-btn')){
+    pad.querySelectorAll('.qp-icon.show-clear').forEach(ic=>ic.classList.remove('show-clear'));
+  }
+
+  /* Clear button clicked */
+  const clearBtn=e.target.closest('.qp-clear-btn');
+  if(clearBtn){
+    const icon=clearBtn.closest('.qp-icon');
+    if(icon){
+      const opponentIndex=parseInt(icon.dataset.opponent,10);
+      const cat=icon.dataset.cat;
+      if(!isNaN(opponentIndex) && cat){
+        clearSingleCategory(currentPlayerIndex, opponentIndex, cat);
+        updateQuickPadRow(opponentIndex, cat);
+        updateQuickPadColumnSummary(opponentIndex);
+        updateQuickPadTotals();
+        refreshOverviewOnly();
+        icon.classList.remove('show-clear');
+        updateClearDebtsButtonState();
+      }
+    }
+    return;
+  }
+
+  /* Thumbnail clicked (toggle clear overlay) */
+  const thumb=e.target.closest('.qp-icon');
+  if(thumb){
+    if(thumb.classList.contains('show-clear')){
+      thumb.classList.remove('show-clear');
+    } else {
+      pad.querySelectorAll('.qp-icon.show-clear').forEach(ic=>ic.classList.remove('show-clear'));
+      thumb.classList.add('show-clear');
+    }
+    return;
+  }
+
+  /* Adjust debt buttons */
   const btn=e.target.closest('.qp-btn');
-  if(!btn) return;
+  if(!btn) {
+    updateClearDebtsButtonState();
+    return;
+  }
   const opponentIndex=parseInt(btn.dataset.opponent,10);
   const cat=btn.dataset.cat;
   const action=btn.dataset.action;
-  if(isNaN(opponentIndex) || !cat || !action) return;
+  if(isNaN(opponentIndex) || !cat || !action) {
+    updateClearDebtsButtonState();
+    return;
+  }
 
   lastQuickPadOpponent=opponentIndex;
   const a=currentPlayerIndex;
@@ -829,6 +933,7 @@ function handleQuickPadClick(e){
   updateQuickPadColumnSummary(b);
   updateQuickPadTotals();
   refreshOverviewOnly();
+  updateClearDebtsButtonState();
 }
 
 function quickPadKeyHandler(e){
@@ -857,6 +962,11 @@ function updateQuickPadRow(opponentIndex, cat){
   } else {
     row.classList.add('neutral');
   }
+  if(net===0){
+    const icon=row.querySelector('.qp-icon');
+    if(icon) icon.classList.remove('show-clear');
+  }
+  updateClearDebtsButtonState();
 }
 
 function rebuildQuickPadColumn(opponentIndex){
@@ -872,6 +982,7 @@ function rebuildQuickPadColumn(opponentIndex){
     headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
   }
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
+  updateClearDebtsButtonState();
 }
 
 function updateQuickPadColumnSummary(opponentIndex){
@@ -885,6 +996,7 @@ function updateQuickPadColumnSummary(opponentIndex){
   if(headerSummary){
     headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
   }
+  updateClearDebtsButtonState();
 }
 function updateQuickPadTotals(){
   if(!quickPadOpen) return;
@@ -892,6 +1004,7 @@ function updateQuickPadTotals(){
   if(!totalsEl) return;
   const { owe, collect } = aggregateTotals(currentPlayerIndex);
   totalsEl.innerHTML = `<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
+  updateClearDebtsButtonState();
 }
 
 /* ---------- Clear Debts Dialog ---------- */
@@ -918,6 +1031,10 @@ function showClearDebtsDialog(){
     customPopup("No opponent column detected.");
     return;
   }
+  // Guard: if no debt, do nothing (button should be disabled anyway)
+  if(!hasAnyDebtBetween(currentPlayerIndex, opponentIndex)){
+    return;
+  }
   ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
   overlay.style.zIndex='2000';
@@ -927,26 +1044,25 @@ function showClearDebtsDialog(){
   const oppName=players[opponentIndex].name;
   msg.innerHTML=`
     <h2 class="lilita" style="color:var(--color-accent);margin:0 0 .6rem;">Clear Debts</h2>
-    <p style="font-size:1rem;line-height:1.3;margin:0 0 .85rem;">Select what you would like to clear between <span style="color:var(--color-accent);">${escapeHtml(activeName)}</span> and <span style="color:var(--color-accent);">${escapeHtml(oppName)}</span>.</p>
   `;
   btnBox.innerHTML=`
     <button type="button" id="cddBothBtn"
       style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
              background:var(--color-accent);color:#232323;border:2px solid var(--color-accent);
              box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
-      Clear ALL Debts (Both Directions)
+      Between ${escapeHtml(activeName)} and ${escapeHtml(oppName)}
     </button>
     <button type="button" id="cddOppOwesBtn"
       style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
              background:#1f5e30;color:#e9ffe9;border:2px solid #2f7d46;
              box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
-      ${escapeHtml(oppName)} Owes ${escapeHtml(activeName)}
+      ${escapeHtml(activeName)} collects from ${escapeHtml(oppName)}
     </button>
     <button type="button" id="cddYouOweBtn"
       style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
              background:#5a2525;color:#f5dede;border:2px solid #862d2d;
              box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
-      ${escapeHtml(activeName)} Owes ${escapeHtml(oppName)}
+      ${escapeHtml(activeName)} owes ${escapeHtml(oppName)}
     </button>
     <button type="button" id="cddCancelBtn"
       style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
@@ -1027,8 +1143,6 @@ if(typeof window!=='undefined') window.resetDonationTimer=resetDonationTimer;
 /* =========================================================
    USER-SUPPLIED ENDGAME & OUTSTANDING DEBTS (integrated)
    ========================================================= */
-
-/* Triggered by the Endgame Taxes button */
 function showEndgame(){
   commitActivePlayerTurn();
   const data = collectOutstandingDebtors();
@@ -1733,3 +1847,4 @@ window.loadEndgame=loadEndgame;
 window.calculateFinalTaxes=calculateFinalTaxes;
 window.showTaxBreakdown=showTaxBreakdown;
 window.exitToSetup=exitToSetup;
+window.restorePlayerNamesAndSetup=restorePlayerNamesAndSetup;
