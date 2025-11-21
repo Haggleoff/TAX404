@@ -19,6 +19,34 @@
    - Added Landlord winner styling (tie resolved by properties) with teal theme.
    UPDATED (2025-11-02):
    - Debt Sheet quick-switch chips row styling (.debt-chip-row, .debt-chip). Centered layout.
+   UPDATED (2025-11-20):
+   - Added Outstanding Debt QuickPad (.quick-pad) replacing per-pair debt sheet workflow.
+   - Multi-opponent columns with category rows & dual directional buttons.
+   UPDATED (2025-11-20 PATCH):
+   - QuickPad vertical overflow fix: allow full column length (overflow-y scroll instead of clipping).
+   UPDATED (2025-11-20 PATCH 2):
+   - Extended QuickPad columns to fully contain all categories.
+   UPDATED (2025-11-20 PATCH 3):
+   - Increased QuickPad column min-height further and bottom padding to ensure all categories remain inside column borders.
+   UPDATED (2025-11-20 PATCH 4):
+   - Tuned QuickPad column height down (min-height 1420px, reduced bottom paddings) so column extends just slightly beyond category list.
+   UPDATED (2025-11-20 STICKY HEADER):
+   - Made QuickPad opponent summary header (.qp-column-header) sticky while scrolling categories.
+   UPDATED (2025-11-20 TIMER IN QUICKPAD):
+   - Added active turn timer display (.quick-pad-timer) to QuickPad header (top-right) with full functionality.
+   UPDATED (2025-11-20 CENTER SINGLE OPPONENT):
+   - Center QuickPad column when only one opponent (2-player game).
+   UPDATED (2025-11-20 TOTALS IN QUICKPAD HEADER):
+   - Added aggregated totals line (.quick-pad-total-line) under Record Debts title in QuickPad.
+   UPDATED (2025-11-21 TRADE STYLE DEBT BAR):
+   - Debt summary bar restyled into dual-segment trade button (.debt-trade-bar) with red (You Owe) + green (You Collect).
+   UPDATED (2025-11-21 TRADE BAR GAP FIX):
+   - Removed inner gaps (edge slivers & center wedge). Segments now flex to fill container.
+   - Replaced clip-path divider with seamless angled overlay pseudo-element.
+   UPDATED (2025-11-21 POOF ANIMATION):
+   - Added poof animation for losing an in-progress normal card streak when Charity is taken.
+   UPDATED (2025-11-21 ENDGAME TAXES BUTTON RED):
+   - Endgame Taxes button styled in red (danger theme).
    ========================================================= */
 
 :root {
@@ -158,7 +186,18 @@ button,
 .btn-round.alt { background:var(--color-accent-alt); color:#fff; }
 .btn-round.alt:active { background:var(--color-accent-alt-dark); }
 
-/* Add Player maxed state (visual grey-out but still clickable for popup) */
+/* Endgame Taxes button (danger theme override) */
+#endgameTaxesBtn {
+  background:#5a2525;
+  color:#f5dede;
+  border:2px solid #862d2d;
+}
+#endgameTaxesBtn:active {
+  background:#7a3333;
+  transform:translateY(1px);
+}
+
+/* Add Player maxed state */
 #addPlayerBtn.add-player-maxed {
   opacity:0.45;
   filter:grayscale(.35) brightness(.9);
@@ -324,7 +363,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   font-size:0.92rem;
   letter-spacing:.45px;
   color:#d9d9d9;
-  margin-top:.2rem;
+  margin-top=.2rem;
 }
 .donation-section.inactive .normal-cards-container {
   pointer-events:none;
@@ -341,7 +380,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .donation-section.inactive .power-circle-container,
 .donation-section.inactive .donate-row.buttons-row { display:none !important; }
 
-/* Passive debt summary bar styling */
+/* Passive debt summary bar styling (legacy base retained) */
 .debt-summary-bar.passive {
   cursor:default;
   pointer-events:none;
@@ -432,7 +471,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .info-icon:focus-visible { box-shadow:0 0 0 2px #000, 0 0 0 4px #d4af7f55; }
 
-/* Debt Summary Bar */
+/* Debt Summary Bar base (legacy) */
 .debt-summary-bar {
   background:var(--color-surface);
   border:2px solid var(--color-border);
@@ -456,6 +495,86 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .ds-owe { color:var(--color-danger); }
 .ds-collect { color:var(--color-success); }
 
+/* Dual-Segment Trade Style Debt Summary Bar (gapless) */
+.debt-summary-bar.debt-trade-bar {
+  background:#1d1d1d;
+  display:flex;
+  gap:0;
+  padding:0;
+  overflow:hidden;
+  border:2px solid #353535;
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm),0 0 0 2px #000 inset;
+  position:relative;
+}
+.debt-summary-bar.debt-trade-bar.passive {
+  opacity:0.9;
+  filter:grayscale(.35) brightness(.85);
+  box-shadow:var(--shadow-sm), inset 0 0 0 2px #161616;
+  cursor:default;
+}
+.debt-summary-bar.debt-trade-bar .trade-seg {
+  flex:1 1 50%;
+  padding:0.58rem 1.05rem 0.58rem 1.0rem;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--font-display);
+  font-size:0.9rem;
+  letter-spacing:.45px;
+  line-height:1.15;
+  transition:filter var(--transition-fast), background var(--transition-fast);
+  position:relative;
+}
+.debt-summary-bar.debt-trade-bar .trade-seg.seg-owe {
+  background:linear-gradient(135deg,#5a2525 0%, #7a3333 100%);
+  box-shadow:inset 0 0 0 2px #862d2d55;
+}
+.debt-summary-bar.debt-trade-bar .trade-seg.seg-collect {
+  background:linear-gradient(135deg,#1f5e30 0%, #2f7d46 100%);
+  box-shadow:inset 0 0 0 2px #2f7d4655;
+}
+
+/* Center angled divider (pseudo-element) */
+.debt-summary-bar.debt-trade-bar:not(.passive)::before {
+  content:"";
+  position:absolute;
+  top:0; bottom:0;
+  left:50%;
+  width:44px;
+  transform:translateX(-50%) skewX(-18deg);
+  background:#111;
+  box-shadow:0 0 6px #000a;
+  pointer-events:none;
+}
+.debt-summary-bar.debt-trade-bar.passive::before {
+  content:"";
+  position:absolute;
+  top:0; bottom:0;
+  left:50%;
+  width:44px;
+  transform:translateX(-50%) skewX(-18deg);
+  background:#181818;
+  opacity:.55;
+  pointer-events:none;
+}
+
+.debt-summary-bar.debt-trade-bar:not(.passive):hover .trade-seg { filter:brightness(1.08); }
+.debt-summary-bar.debt-trade-bar:active .trade-seg { filter:brightness(.92); }
+
+.debt-summary-bar.debt-trade-bar .trade-seg .ds-owe,
+.debt-summary-bar.debt-trade-bar .trade-seg .ds-collect {
+  font-size:.85rem;
+  letter-spacing:.4px;
+  text-shadow:0 1px 0 #0009;
+  color:#fff;
+}
+.debt-summary-bar.debt-trade-bar.passive .trade-seg .ds-owe,
+.debt-summary-bar.debt-trade-bar.passive .trade-seg .ds-collect {
+  color:#fffce0cc;
+}
+
 /* Donate Blocks */
 .donate-block, .donate-block-empty {
   width:22px; height:30px; border-radius:var(--radius-sm);
@@ -463,6 +582,16 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .donate-block { background:var(--color-accent); }
 .donate-block-empty { background:#3a3329; opacity:0.25; box-shadow:none; }
+
+/* Poof animation for losing in-progress streak */
+.donate-block.progress-prev.poof-out {
+  animation: poofOut .45s ease forwards;
+}
+@keyframes poofOut {
+  0% { opacity:1; transform:scale(1); filter:blur(0); }
+  30% { opacity:1; transform:scale(1.25); }
+  100% { opacity:0; transform:scale(.6); filter:blur(6px); }
+}
 
 /* Tax Breaks Badge (Base) */
 .tax-breaks-badge.inline { position:relative; filter:drop-shadow(0 2px 5px #0008); overflow:visible; }
@@ -486,7 +615,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   background:radial-gradient(circle at 38% 32%, #5a4935 0%, #3a2e24 62%, #261f19 100%);
   box-shadow:inset 0 0 0 2px #d4af7f33,0 0 0 2px #161616,0 4px 12px #000b;
 }
-/* Flare ring pseudo-element (animated on earned) */
 .tax-breaks-badge .tb-value::after {
   content:"";
   position:absolute;
@@ -499,15 +627,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 0 0 0 transparent;
   pointer-events:none;
 }
-/* Brighter earned state: stronger glow + layered drop-shadows */
 .tax-breaks-badge.inline.earned {
   filter: drop-shadow(0 2px 5px #0008)
           drop-shadow(0 0 16px rgba(212,175,127,0.8))
           drop-shadow(0 0 32px rgba(212,175,127,0.55));
 }
-.tax-breaks-badge.earned .tb-text {
-  fill:#f0dbac;
-}
+.tax-breaks-badge.earned .tb-text { fill:#f0dbac; }
 .tax-breaks-badge.earned .tb-value {
   animation:tbValuePop 0.65s ease;
   box-shadow:
@@ -516,7 +641,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
     0 4px 12px #000b,
     0 0 18px 6px rgba(212,175,127,0.55);
 }
-/* Trigger brighter gold flare when value increases */
 .tax-breaks-badge.earned .tb-value::after { animation:valuePulseGold .85s ease-out; }
 
 @keyframes tbRotate { from { transform:rotate(0deg);} to { transform:rotate(360deg);} }
@@ -534,7 +658,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   outline-offset:2px;
 }
 
-/* Unified Tooltip Base (used by badge + info icon) */
+/* Unified Tooltip Base */
 .tb-tooltip {
   position:absolute;
   top:100%;
@@ -614,23 +738,10 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 /* Pulses */
 @keyframes valuePulseGreen { 0% { box-shadow:0 0 0 0 #19a43c55; } 100% { box-shadow:0 0 0 18px transparent; } }
 @keyframes valuePulseRed { 0% { box-shadow:0 0 0 0 #dc143c55; } 100% { box-shadow:0 0 0 18px transparent; } }
-/* Brighter gold pulse for Tax Breaks badge */
 @keyframes valuePulseGold {
-  0% {
-    box-shadow:
-      0 0 0 0 rgba(212,175,127,0.85),
-      0 0 20px 8px rgba(212,175,127,0.55);
-  }
-  60% {
-    box-shadow:
-      0 0 0 18px rgba(212,175,127,0.0),
-      0 0 26px 12px rgba(212,175,127,0.35);
-  }
-  100% {
-    box-shadow:
-      0 0 0 30px transparent,
-      0 0 0 30px transparent;
-  }
+  0% { box-shadow:0 0 0 0 rgba(212,175,127,0.85), 0 0 20px 8px rgba(212,175,127,0.55); }
+  60% { box-shadow:0 0 0 18px rgba(212,175,127,0.0), 0 0 26px 12px rgba(212,175,127,0.35); }
+  100% { box-shadow:0 0 0 30px transparent, 0 0 0 30px transparent; }
 }
 .value-pulse-green { animation:valuePulseGreen .7s ease-out; }
 .value-pulse-red { animation:valuePulseRed .7s ease-out; }
@@ -668,354 +779,10 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .debt-sheet.open,
 .final-detail-sheet.open { transform:translateY(0); opacity:1; }
 
-.debt-sheet-header,
-.final-detail-sheet-header {
-  display:flex; flex-direction:column; gap:0.45rem;
-  align-items:center; padding-bottom:0.25rem;
-  position:relative;
-  padding-top:0.8rem;
-}
-.debt-sheet-header #debtSheetTimerDisplay {
-  position:absolute;
-  top:6px;
-  right:14px;
-  font-size:2.4rem;
-  line-height:1;
-  font-family:var(--font-display);
-  color:#fff;
-  letter-spacing:1px;
-  text-shadow:0 0 4px #0008;
-  cursor:pointer;
-  min-width:64px;
-  text-align:right;
-}
-
-.debt-sheet-grip,
-.final-detail-sheet-grip {
-  width:56px; height:5px; background:#444; border-radius:3px;
-  position:absolute; top:4px; left:50%; transform:translateX(-50%);
-}
-.debt-sheet-title,
-.final-detail-sheet-title {
-  margin:0.55rem 0 0 0;
-  font-size:1.3rem;
-  color:var(--color-accent);
-  letter-spacing:0.5px;
-  text-align:center;
-}
-
-.debt-cat-groups { flex:1 1 auto; overflow-y:auto; margin-top:0.35rem; padding-right:0.35rem; scrollbar-width:thin; scrollbar-color:#444 #202020; }
-.debt-group-block {
-  background:var(--color-surface);
-  border:2px solid var(--color-border-soft);
-  border-radius:var(--radius-xl);
-  padding:0.55rem 0.75rem 0.65rem;
-  margin-bottom:0.75rem;
-  transition:border-color var(--transition-fast);
-}
-.debt-group-block:hover { border-color:#454545; }
-
-.debt-group-header { display:flex; align-items:center; justify-content:space-between; user-select:none; margin-bottom:0.35rem; }
-.debt-group-header h4 {
-  margin:0; font-family:var(--font-display); font-size:1rem;
-  font-weight:normal; color:var(--color-accent); letter-spacing:0.4px;
-}
-.debt-group-toggle {
-  background:#313131; border:2px solid #3a3a3a; color:var(--color-fg);
-  font-family:var(--font-display); font-size:0.9rem; padding:0.28rem 0.9rem;
-  border-radius:var(--radius-md); cursor:pointer;
-  transition:background var(--transition-fast), color var(--transition-fast);
-}
-.debt-group-toggle:active { background:#404040; }
-
-.debt-category-list {
-  display:flex; flex-direction:column; gap:0.55rem; overflow:hidden;
-  transition:max-height 0.35s ease, opacity 0.3s;
-}
-.debt-category-row {
-  background:var(--color-panel);
-  border:2px solid #3a3a3a;
-  border-radius:var(--radius-lg);
-  padding:0.55rem 0.6rem 0.65rem;
-  display:grid;
-  grid-template-columns:54px 1fr auto;
-  gap:0.6rem;
-  align-items:center;
-  box-shadow:var(--shadow-sm);
-  min-height:66px;
-  position:relative;
-  transition:background var(--transition-fast), border-color var(--transition-fast);
-}
-.debt-category-row:active { background:#373737; }
-
-.debt-cat-thumb {
-  width:52px; height:52px;
-  position:relative;
-  border-radius:var(--radius-md);
-  overflow:hidden;
-  cursor:pointer;
-  flex:0 0 auto;
-}
-.debt-cat-thumb .debt-cat-icon {
-  width:100%; height:100%;
-  border-radius:var(--radius-md);
-  object-fit:contain;
-  background:#191919;
-  box-shadow:0 2px 6px #0005;
-  pointer-events:none;
-  transition:opacity .25s, filter .25s;
-}
-.debt-cat-thumb[data-hasdebt="1"]:hover .debt-cat-icon {
-  filter:brightness(1.1);
-}
-.debt-cat-thumb.show-trash .debt-cat-icon {
-  opacity:.18;
-  filter:grayscale(.4) brightness(.8);
-}
-.debt-cat-trash-btn {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  border-radius:var(--radius-md);
-  background:linear-gradient(145deg,#5a2525ee,#3d1515ee);
-  border:2px solid #7a3333;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:28px;
-  color:#f5dede;
-  box-shadow:0 4px 14px #000a, inset 0 0 0 2px #321010;
-  cursor:pointer;
-  opacity:0;
-  transform:scale(.9);
-  transition:opacity .22s, transform .22s, background .25s;
-  font-family:var(--font-display);
-  line-height:1;
-  padding:0;
-  pointer-events:none;
-}
-.debt-cat-thumb.show-trash .debt-cat-trash-btn {
-  opacity:1;
-  transform:scale(1);
-  pointer-events:auto;
-}
-.debt-cat-trash-btn:active {
-  transform:scale(.94);
-  background:linear-gradient(145deg,#7a3333,#4a1d1d);
-}
-
-.debt-cat-info { display:flex; flex-direction:column; gap:0.35rem; font-family:var(--font-display); align-items:flex-start; }
-.debt-cat-name { font-size:1rem; letter-spacing:0.45px; color:var(--color-accent); margin:0; }
-.debt-cat-stats { font-size:1rem; display:flex; gap:0.6rem; align-items:center; }
-
-.debt-cat-stats .pill {
-  background:#272727;
-  border:1px solid #3b3b3b;
-  padding:0.3rem 0.65rem;
-  border-radius:999px;
-  line-height:1;
-  font-family:var(--font-display);
-  letter-spacing:.3px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  white-space:nowrap;
-  font-size:0.85rem;
-  transition:background .25s, border-color .25s, color .25s;
-}
-.pill-status { min-width:60px; text-align:center; }
-.pill-status.none { background:#373737; border-color:#4a4a4a; color:#bdbdbd; }
-.pill-status.owe { background:#5a2525; border-color:#7a3333; color:#f5dede; }
-.pill-status.collect { background:#1f5e30; border-color:#2f7d46; color:#e5ffe8; }
-
-.pill-amt {
-  background:#272727;
-  border:1px solid #3b3b3b;
-  color:#e1e1e1;
-  min-width:38px;
-  text-align:center;
-}
-.pill-amt.none { background:#373737; border-color:#4a4a4a; color:#d0d0d0; }
-.pill-amt.owe { background:#5a2525; border-color:#7a3333; color:#f9e3e3; }
-.pill-amt.collect { background:#1f5e30; border-color:#2f7d46; color:#e9ffe9; }
-
-.debt-cat-adjust { display:flex; flex-direction:row; gap:6px; align-items:center; justify-content:center; }
-.debt-adjust-dyn-btn {
-  width:46px; height:46px;
-  font-family:var(--font-display);
-  font-size:1.4rem;
-  border-radius:var(--radius-lg);
-  border:2px solid transparent;
-  background:#333;
-  color:#fff;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  box-shadow:var(--shadow-sm);
-  transition:background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-  user-select:none;
-}
-.debt-adjust-dyn-btn:active { transform:translateY(1px); }
-
-/* Dynamic adjust init states */
-.debt-adjust-init-owe {
-  background:#5a2525;
-  border-color:#7a3333;
-  color:#f5dede;
-  font-size:0;
-}
-.debt-adjust-init-collect {
-  background:#1f5e30;
-  border-color:#2f7d46;
-  color:#e9ffe9;
-  font-size:0;
-}
-
-/* Adjusting states */
-.debt-adjust-owe {
-  background:#5a2525;
-  border-color:#7a3333;
-  color:#f8e7e7;
-}
-.debt-adjust-owe:active { background:#7a3333; }
-
-.debt-adjust-collect {
-  background:#1f5e30;
-  border-color:#2f7d46;
-  color:#e9ffe9;
-}
-.debt-adjust-collect:active { background:#2f7d46; }
-
-.debt-inline-confirm-backdrop {
-  position:absolute;
-  inset:0;
-  background:#000000bb;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:50;
-  animation:fadeIn .25s;
-}
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-.debt-inline-confirm {
-  background:#272727;
-  border:2px solid var(--color-border);
-  border-radius:18px;
-  padding:1rem .95rem 1.05rem;
-  width:100%;
-  max-width:520px;
-  box-shadow:0 8px 28px #000c, 0 0 0 2px #1a1a1a inset;
-  display:flex;
-  flex-direction:column;
-  gap:.85rem;
-  position:relative;
-  animation:scaleIn .3s cubic-bezier(.25,.8,.25,1);
-}
-@keyframes scaleIn {
-  0% { transform:scale(.9); opacity:0; }
-  100% { transform:scale(1); opacity:1; }
-}
-.debt-inline-confirm h4 {
-  margin:0;
-  font-family:var(--font-display);
-  font-size:1.1rem;
-  letter-spacing:.55px;
-  color:var(--color-accent);
-  text-align:center;
-}
-.debt-inline-confirm p {
-  margin:0;
-  font-size:.85rem;
-  line-height:1.35;
-  font-family:var(--font-display);
-  letter-spacing:.4px;
-  color:#ddd;
-  text-align:center;
-}
-.debt-inline-confirm .confirm-btns {
-  display:flex;
-  flex-direction:column;
-  gap:.55rem;
-}
-.debt-inline-confirm .confirm-btns button {
-  width:100%;
-  font-size:.9rem;
-  padding:.7rem .9rem;
-  letter-spacing:.5px;
-  border-radius:24px;
-  max-width:100% !important;
-  flex:0 0 auto !important;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  line-height:1.15;
-  font-family:var(--font-display);
-  box-shadow:0 2px 6px #0006;
-  border:2px solid transparent;
-}
-.debt-inline-confirm .confirm-btns button[data-action="both"] {
-  background:var(--color-accent);
-  color:#232323;
-  font-weight:600;
-  border-color:var(--color-accent);
-}
-.debt-inline-confirm .confirm-btns button[data-action="a-b"] {
-  background:#5a2525;
-  border-color:#7a3333;
-  color:#f8e7e7;
-}
-.debt-inline-confirm .confirm-btns button[data-action="b-a"] {
-  background:#1f5e30;
-  border-color:#2f7d46;
-  color:#e9ffe9;
-}
-.debt-inline-confirm .confirm-btns button[data-action="cancel"] {
-  background:#313131;
-  border-color:#3d3d3d;
-  color:#f1f1f1;
-}
-.debt-inline-confirm .confirm-btns button:active {
-  transform:translateY(1px);
-  filter:brightness(.92);
-}
-
-.debt-pair-bottom-summary {
-  padding:0.6rem 0.4rem 0.55rem;
-  text-align:center;
-  border-top:1px solid #3a3a3a;
-  margin-top:0.4rem;
-  font-family:var(--font-display);
-  display:flex;
-  flex-direction:column;
-  gap:0.45rem;
-  letter-spacing:.4px;
-}
-.debt-pair-nav { display:flex; align-items:center; justify-content:center; gap:.6rem; }
-.debt-pair-nav-btn {
-  background:#313131;
-  border:2px solid #3a3a3a;
-  width:44px; height:44px;
-  border-radius:50%;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-family:var(--font-display);
-  font-size:1.2rem;
-  color:var(--color-accent);
-  cursor:pointer;
-  transition:background .2s;
-}
-.debt-pair-nav-btn:active { background:#3d3d3d; }
-.debt-pair-nav-btn:disabled { opacity:.32; cursor:default; }
-.debt-pair-title { font-size:1.1rem; color:var(--color-accent); letter-spacing:.5px; font-family:var(--font-display); min-width:160px; text-align:center; }
-.debt-pair-title .other-player { color:#d9d9d9; }
-
-/* Debt Sheet Quick-Switch Chips - centered row */
+/* Debt Sheet Quick-Switch Chips */
 .debt-chip-row {
   display:flex;
-  justify-content:center; /* center chips */
+  justify-content:center;
   gap:.55rem;
   overflow-x:auto;
   padding:.35rem .2rem .45rem;
@@ -1115,6 +882,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .tax-breaks-badge .tb-value { width:32px; height:32px; }
   .tax-breaks-badge .tb-text { font-size:15px; }
   .debt-sheet-header #debtSheetTimerDisplay { font-size:1.95rem; min-width:56px; }
+  .debt-summary-bar.debt-trade-bar .trade-seg { padding:0.55rem 0.85rem; }
 }
 @media (max-width:420px){
   .player-card { min-width:300px; max-width:300px; }
@@ -1126,6 +894,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .tax-breaks-badge .tb-value { width:30px; height:30px; }
   .tax-breaks-badge .tb-text { font-size:14px; }
   .debt-sheet-header #debtSheetTimerDisplay { font-size:1.8rem; }
+  .debt-summary-bar.debt-trade-bar .trade-seg { padding:0.5rem 0.7rem; }
 }
 
 /* Reduced motion */
@@ -1166,7 +935,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   color:#232323;
   box-shadow:0 10px 38px #0008, 0 0 0 2px #e6c79a inset;
 }
-/* Landlord ribbon (tie resolved via properties) */
 .fr2-ribbon.landlord {
   background:linear-gradient(135deg,#24c2a8,#15876f);
   color:#e9fffa;
@@ -1174,7 +942,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 }
 .fr2-ribbon .emoji { font-size:1.15rem; line-height:1; }
 
-/* Switch final results to Flexbox (more stable on iOS) */
 .fr2-grid {
   display:flex;
   flex-wrap:wrap;
@@ -1197,11 +964,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   min-height:260px;
   flex:1 1 300px;
   min-width:300px;
-
-  /* iOS compositor stability */
-  -webkit-backface-visibility:hidden;
   backface-visibility:hidden;
-  -webkit-transform:translate3d(0,0,0);
   transform:translate3d(0,0,0);
   will-change:transform;
   contain: layout paint;
@@ -1209,16 +972,9 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   z-index:0;
 }
 .fr2-card.winner { border-color:#d4af7f; box-shadow:0 0 0 2px #d4af7f55, 0 12px 32px #000c; }
-.fr2-card.shareholder {
-  border-color:#7c96d9;
-  box-shadow:0 0 0 2px #7c96d955, 0 12px 32px #000c;
-}
-.fr2-card.landlord {
-  border-color:#24c2a8;
-  box-shadow:0 0 0 2px #24c2a855, 0 12px 32px #000c;
-}
+.fr2-card.shareholder { border-color:#7c96d9; box-shadow:0 0 0 2px #7c96d955, 0 12px 32px #000c; }
+.fr2-card.landlord { border-color:#24c2a8; box-shadow:0 0 0 2px #24c2a855, 0 12px 32px #000c; }
 
-/* Badge in normal flow (avoid absolute/negative offsets) */
 .fr2-badge {
   position:static;
   background:#2a2520; color:#ead6b7;
@@ -1231,19 +987,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   display:inline-block;
   margin:0 0 8px 0;
 }
-.fr2-card.shareholder .fr2-badge {
-  background:#2a2f3d;
-  color:#dbe5fb;
-  border-color:#7c96d9;
-}
-.fr2-card.landlord .fr2-badge {
-  background:#1a3430;
-  color:#b8fff1;
-  border-color:#24c2a8;
-}
+.fr2-card.shareholder .fr2-badge { background:#2a2f3d; color:#dbe5fb; border-color:#7c96d9; }
+.fr2-card.landlord .fr2-badge { background:#1a3430; color:#b8fff1; border-color:#24c2a8; }
 
 .fr2-name {
-  margin:.3rem 0 .6rem; text-align:center;
+  margin:.3rem 0 .6rem;
+  text-align:center;
   font-family:var(--font-display);
   color:#e3c79b;
   font-size:1.9rem; letter-spacing:.6px; text-shadow:0 1px 0 #000;
@@ -1369,3 +1118,238 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }
 }
+
+/* ---------- Outstanding Debt QuickPad (NEW) ---------- */
+#quickPadOverlay {
+  position:fixed; inset:0;
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  background:#00000066;
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  z-index:1700;
+}
+.quick-pad {
+  width:100%;
+  max-width:1100px;
+  background:#181818;
+  border-radius:28px 28px 0 0;
+  border:2px solid #2d2d2d;
+  box-shadow:0 -4px 28px #0008, 0 0 14px #000b;
+  padding:1rem .9rem calc(1.05rem + var(--safe-bottom));
+  transform:translateY(100%);
+  opacity:0;
+  transition:transform .45s cubic-bezier(.25,.8,.25,1), opacity .4s;
+  max-height:calc(100dvh - 8px);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  overflow:hidden;
+}
+
+.quick-pad.open { transform:translateY(0); opacity:1; }
+
+.quick-pad-header {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:.4rem;
+  padding-top:.7rem;
+  position:relative;
+}
+.quick-pad-grip {
+  width:56px; height:6px;
+  background:#444;
+  border-radius:3px;
+  position:absolute;
+  top:4px; left:50%; transform:translateX(-50%);
+}
+.quick-pad-title {
+  margin:0;
+  font-size:1.35rem;
+  letter-spacing:.55px;
+  color:var(--color-accent);
+  font-family:var(--font-display);
+  text-align:center;
+  padding:0 .9rem;
+}
+.quick-pad-timer {
+  position:absolute;
+  top:4px;
+  right:10px;
+  font-size:2.1rem;
+  line-height:1;
+  font-family:var(--font-display);
+  color:#fff;
+  letter-spacing:1px;
+  text-shadow:0 0 4px #0008;
+  cursor:pointer;
+  user-select:none;
+  min-width:60px;
+  text-align:right;
+}
+.quick-pad-total-line {
+  font-family:var(--font-display);
+  font-size:.85rem;
+  letter-spacing:.4px;
+  text-align:center;
+  margin:0;
+  color:#e4e4e4;
+  user-select:none;
+}
+.quick-pad-total-line .owe { color:var(--color-danger); font-weight:600; }
+.quick-pad-total-line .collect { color:var(--color-success); font-weight:600; }
+
+.quick-pad-columns {
+  flex:1 1 auto;
+  overflow-x:auto;
+  display:flex;
+  gap:1.1rem;
+  padding:.5rem .3rem .4rem;
+  scrollbar-width:thin;
+  scrollbar-color:#444 #202020;
+}
+.quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
+.quick-pad-columns::-webkit-scrollbar { height:10px; }
+.quick-pad-columns::-webkit-scrollbar-thumb { background:#444; border-radius:8px; }
+
+.qp-column {
+  flex:0 0 340px;
+  background:#222;
+  border:2px solid #2f2f2f;
+  border-radius:20px;
+  padding:.65rem .6rem 2.0rem;
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+  box-shadow:0 4px 14px #000a;
+  position:relative;
+  min-height:1420px;
+}
+
+.qp-column-header {
+  background:#1f1f1f;
+  border:2px solid #2d2d2d;
+  border-radius:16px;
+  padding:.55rem .7rem;
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  font-family:var(--font-display);
+  letter-spacing:.4px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+.qp-column-header .qp-opponent-name {
+  font-size:1.05rem;
+  margin:0;
+  text-align:center;
+  color:#e7e7e7;
+}
+.qp-column-header .qp-summary-line {
+  font-size:.8rem;
+  text-align:center;
+  line-height:1.25;
+}
+.qp-column-header .qp-summary-line .owe { color:var(--color-danger); font-weight:600; }
+.qp-column-header .qp-summary-line .collect { color:var(--color-success); font-weight:600; }
+
+.qp-category-list {
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+  padding:.3rem .15rem 1.3rem;
+  overflow:visible;
+}
+
+.qp-cat-row {
+  background:#1d1d1d;
+  border:2px solid #2d2d2d;
+  border-radius:18px;
+  padding:.55rem .65rem .55rem .6rem;
+  display:grid;
+  grid-template-columns:48px 1fr 70px 92px;
+  align-items:center;
+  gap:.55rem;
+  position:relative;
+  font-family:var(--font-display);
+  letter-spacing:.4px;
+  transition:border-color .25s, background .25s, box-shadow .25s;
+}
+.qp-cat-row.positive { background:#183522; border-color:#2f7d46; box-shadow:0 0 0 2px #2f7d4622; }
+.qp-cat-row.negative { background:#3a1d1d; border-color:#7a3333; box-shadow:0 0 0 2px #7a333322; }
+.qp-cat-row.neutral { background:#1d1d1d; }
+
+.qp-icon {
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  overflow:hidden;
+  background:#141414;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 2px 6px #0008;
+}
+.qp-icon img {
+  width:100%; height:100%;
+  object-fit:contain;
+  border-radius:14px;
+  filter:brightness(.95);
+}
+
+.qp-name { font-size:.95rem; color:#ededed; white-space:nowrap; }
+.qp-value { text-align:center; font-size:.95rem; font-weight:600; color:#d9d9d9; }
+.qp-cat-row.positive .qp-value { color:var(--color-success); }
+.qp-cat-row.negative .qp-value { color:var(--color-danger); }
+
+.qp-actions { display:flex; gap:.5rem; justify-content:center; }
+.qp-btn {
+  flex:1 1 auto;
+  background:#2a2a2a;
+  border:2px solid #333;
+  color:#d9d9d9;
+  font-family:var(--font-display);
+  font-size:.95rem;
+  padding:.55rem 0;
+  border-radius:14px;
+  cursor:pointer;
+  transition:background .2s, transform .18s, border-color .2s, color .2s;
+  line-height:1;
+  position:relative;
+  user-select:none;
+}
+.qp-btn:active { transform:translateY(1px); }
+.qp-btn.qp-owe { background:#4a2020; border-color:#5a2525; color:#f5dede; }
+.qp-btn.qp-owe:hover { background:#5a2525; }
+.qp-btn.qp-collect { background:#1f5e30; border-color:#2f7d46; color:#e9ffe9; }
+.qp-btn.qp-collect:hover { background:#2f7d46; }
+
+.quick-pad-footer {
+  margin-top:.6rem;
+  display:flex;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+.quick-pad-footer button { flex:1 1 180px; font-size:.95rem; }
+
+/* QuickPad Animations */
+@keyframes qpPulseGreen { 0%{box-shadow:0 0 0 0 rgba(25,164,60,.55);} 100%{box-shadow:0 0 0 20px transparent;} }
+@keyframes qpPulseRed { 0%{box-shadow:0 0 0 0 rgba(220,20,60,.55);} 100%{box-shadow:0 0 0 20px transparent;} }
+.qp-cat-row.pulse-green { animation:qpPulseGreen .7s ease-out; }
+.qp-cat-row.pulse-red { animation:qpPulseRed .7s ease-out; }
+
+@media (max-width:480px){
+  .qp-column { flex:0 0 300px; min-height:1420px; }
+  .qp-cat-row { grid-template-columns:42px 1fr 62px 88px; }
+  .qp-icon { width:40px; height:40px; }
+  .qp-name { font-size:.85rem; }
+  .qp-value { font-size:.85rem; }
+  .qp-btn { font-size:.85rem; padding:.5rem 0; }
+  .quick-pad-timer { font-size:1.9rem; min-width:54px; }
+}
+
+/* (End of file) */
