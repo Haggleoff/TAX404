@@ -71,6 +71,11 @@
  * UPDATED (2025-11-22 REORDER POWER CARDS):
  * - Moved "Show/Hide Power Cards" button out of header to top of list.
  * - Reordered categories: Power Cards group now appears ABOVE Haggie when shown.
+ *
+ * UPDATED (2025-11-22 QUICKPAD HEADER SUBTITLE):
+ * - Removed player name from title "Record Debts".
+ * - Added subtitle line below title: "PlayerName ⇔ OpponentName".
+ * - Opponent name updates dynamically based on focused column.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -786,6 +791,7 @@ function openQuickPad(){
   updateTimerDisplays();
   updateQuickPadTotals();
   updateClearDebtsButtonState();
+  updateQuickPadSubtitle(); // Initial update
 }
 
 function closeQuickPad(){
@@ -881,7 +887,8 @@ function buildQuickPadContent(){
   pad.innerHTML=`
     <div class="quick-pad-header">
       <div class="quick-pad-grip"></div>
-      <h3 class="quick-pad-title">Record Debts – ${escapeHtml(players[activeIdx].name)}</h3>
+      <h3 class="quick-pad-title">Record Debts</h3>
+      <div class="quick-pad-subtitle" id="quickPadSubtitle"></div>
       <div class="quick-pad-timer" id="quickPadTimerDisplay" aria-label="Turn Timer (click to pause / resume)">${timeLeft}</div>
       ${debtBarHeader}
     </div>
@@ -930,6 +937,16 @@ function updateClearDebtsButtonState(){
   btn.disabled = !hasAnyDebtBetween(active,opponentIndex);
 }
 
+/* ---------- Dynamic Subtitle Update ---------- */
+function updateQuickPadSubtitle(){
+  const sub = document.getElementById('quickPadSubtitle');
+  if(!sub) return;
+  const opponentIndex = getFocusedQuickPadOpponent();
+  const activeName = players[currentPlayerIndex].name;
+  const oppName = (opponentIndex !== null && players[opponentIndex]) ? players[opponentIndex].name : "...";
+  sub.textContent = `${activeName} ⇔ ${oppName}`;
+}
+
 function bindQuickPadEvents(){
   const pad=document.getElementById('quickPad');
   if(!pad) return;
@@ -955,6 +972,7 @@ function bindQuickPadEvents(){
       if(scrollRAF) cancelAnimationFrame(scrollRAF);
       scrollRAF=requestAnimationFrame(()=>{
         updateClearDebtsButtonState();
+        updateQuickPadSubtitle();
         const arrow=document.getElementById('quickPadScrollArrow');
         if(arrow && !quickPadArrowDismissed && columns.scrollLeft>0){
             arrow.classList.add('hide');

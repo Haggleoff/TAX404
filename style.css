@@ -51,6 +51,8 @@
      - Reduced bottom padding on .qp-column and .qp-category-list to eliminate excess empty space at the bottom of columns.
    2025-11-22 (Overscroll Fix):
      - Added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding.
+   2025-11-22 (Header Subtitle):
+     - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
    ========================================================= */
 
 :root {
@@ -1166,6 +1168,16 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   text-align:center;
   padding:0 .9rem;
 }
+/* New subtitle for active player vs opponent */
+.quick-pad-subtitle {
+  margin: -0.2rem 0 0.2rem;
+  font-size: 1rem;
+  font-family: var(--font-display);
+  color: #e4e4e4;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+
 .quick-pad-timer {
   position:absolute;
   top:4px;
