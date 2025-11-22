@@ -74,7 +74,7 @@
  *
  * UPDATED (2025-11-22 QUICKPAD HEADER SUBTITLE):
  * - Removed player name from title "Record Debts".
- * - Added subtitle line below title: "PlayerName ⇔ OpponentName".
+ * - Added subtitle line below title: "PlayerName ❮ ❯ OpponentName".
  * - Opponent name updates dynamically based on focused column.
  ************************************************************/
 
@@ -944,7 +944,7 @@ function updateQuickPadSubtitle(){
   const opponentIndex = getFocusedQuickPadOpponent();
   const activeName = players[currentPlayerIndex].name;
   const oppName = (opponentIndex !== null && players[opponentIndex]) ? players[opponentIndex].name : "...";
-  sub.textContent = `${activeName} ⇔ ${oppName}`;
+  sub.textContent = `${activeName} ❮ ❯ ${oppName}`;
 }
 
 function bindQuickPadEvents(){
