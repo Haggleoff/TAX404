@@ -50,7 +50,7 @@
    2025-11-22 (Column Gap Fix):
      - Reduced bottom padding on .qp-column and .qp-category-list to eliminate excess empty space at the bottom of columns.
    2025-11-22 (Overscroll Fix):
-     - Added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding.
+     - REMOVED overscroll-behavior:none to .quick-pad-columns to restore rubber-banding.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
    ========================================================= */
@@ -1215,7 +1215,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
   align-items: flex-start;
-  overscroll-behavior: none; /* Prevent overscroll/bounce */
+  /* REMOVED overscroll-behavior:none to restore rubber-banding per user request */
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
 }
