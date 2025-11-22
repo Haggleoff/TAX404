@@ -53,8 +53,11 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
-   2025-11-22 (Scroll Axis Isolation):
-     - Moved vertical scrolling from container to individual columns to prevent accidental horizontal swipes when scrolling content.
+   2025-11-22 (Scroll Axis Revert):
+     - Reverted scroll isolation. Vertical scroll is back on the container so columns move together.
+     - Horizontal snap remains active.
+   2025-11-22 (Scrollbar Thickness Fix):
+     - Added width to global scrollbar.
    ========================================================= */
 
 :root {
@@ -856,7 +859,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .final-detail-body { flex:1 1 auto; overflow-y:auto; padding-right:0.35rem; }
 
 /* Scrollbars */
-::-webkit-scrollbar { height:9px; background:#1d1d1d; border-radius:6px; }
+::-webkit-scrollbar { width:9px; height:9px; background:#1d1d1d; border-radius:6px; }
 ::-webkit-scrollbar-thumb { background:#444; border-radius:6px; }
 
 /* Responsive widths */
@@ -1210,14 +1213,14 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .quick-pad-columns {
   flex: 1 1 auto;
   overflow-x: auto;
-  overflow-y: hidden; /* CHANGED: Hide Y scroll on container */
+  overflow-y: scroll; /* REVERTED: Container handles Y scroll again */
   display: flex;
   gap: 1.1rem;
   padding: 0.5rem 0.3rem 0.4rem;
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
-  align-items: stretch; /* CHANGED: Stretch columns to fill height */
-  overscroll-behavior: none; /* Re-added per user request */
+  align-items: flex-start; /* REVERTED: Align top */
+  overscroll-behavior: none; /* Maintained overscroll fix */
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
 }
@@ -1238,9 +1241,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   gap:.65rem;
   box-shadow:0 4px 14px #000a;
   position:relative;
-  /* height:auto; REMOVED to allow stretch */
-  overflow-y: auto; /* CHANGED: Enable local Y scroll */
-  overscroll-behavior-y: contain; /* Added to prevent parent scroll chaining */
+  height:auto; /* REVERTED */
+  /* overflow-y removed so content expands column and parent scrolls */
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
