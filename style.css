@@ -49,6 +49,8 @@
      - Added text-overflow:ellipsis and overflow:hidden to .qp-name to prevent long names like "Stomp&Bray" from pushing column width.
    2025-11-22 (Column Gap Fix):
      - Reduced bottom padding on .qp-column and .qp-category-list to eliminate excess empty space at the bottom of columns.
+   2025-11-22 (Overscroll Fix):
+     - Added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding.
    ========================================================= */
 
 :root {
@@ -1201,6 +1203,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
   align-items: flex-start;
+  overscroll-behavior: none; /* Prevent overscroll/bounce */
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
