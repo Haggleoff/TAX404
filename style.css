@@ -37,6 +37,8 @@
      - Scroll hint arrow changed to standalone larger thicker arrowhead (no circle, no tail).
    2025-11-21 (Arrow Symbol Replacement):
      - Scroll hint arrow now uses the ❯ character instead of CSS triangle.
+   2025-11-22:
+     - QuickPad header debt bar now full width with active visual intensity (override passive dim) while remaining non-interactive.
    ========================================================= */
 
 :root {
@@ -560,7 +562,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .donate-block { background:var(--color-accent); }
 .donate-block-empty { background:#3a3329; opacity:0.25; box-shadow:none; }
 
-/* Poof animation for losing in-progress streak */
+/* Poof animation for losing in-progress streak when Charity selected */
 .donate-block.progress-prev.poof-out {
   animation: poofOut .45s ease forwards;
 }
@@ -1208,7 +1210,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 
 .qp-column-header {
   background:#1f1f1f;
-  border:2px solid #2d2d2d;
+  border:2px solid var(--color-accent);
   border-radius:16px;
   padding:.55rem .7rem;
   display:flex;
@@ -1395,6 +1397,24 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   transition:opacity .55s ease, transform .55s ease;
   opacity:0;
   transform:translateY(-50%) scale(.85);
+}
+
+/* QuickPad header debt bar override (full width, active intensity, non-interactive) */
+.quick-pad-header #quickPadDebtBar.debt-summary-bar.debt-trade-bar.passive {
+  opacity:1;
+  filter:none;
+  box-shadow:var(--shadow-sm),0 0 0 2px #000 inset;
+  cursor:default;
+  pointer-events:none;
+  align-self:stretch;
+  width:100%;
+}
+
+/* Ensure width stretch even if passive class removed later */
+.quick-pad-header #quickPadDebtBar {
+  align-self:stretch;
+  width:100%;
+  margin-top:.25rem;
 }
 
 @media (max-width:480px){

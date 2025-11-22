@@ -54,6 +54,10 @@
  *
  * UPDATED (2025-11-21 ARROW POSITION MOVE):
  * - Scroll hint arrow moved to the right side middle of the player column header box.
+ *
+ * UPDATED (2025-11-22 QUICKPAD HEADER DEBT BAR):
+ * - QuickPad header debt bar now matches active player card visual intensity
+ *   (non-dim) while remaining non-interactive (full width override).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -237,19 +241,20 @@ function buildTaxBreaksBadge(value, interactive=false){
 }
 
 /* ---------- Debt Summary Bars ---------- */
-function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true } = {}){
+function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true, idOverride=null } = {}){
   const { owe, collect } = aggregateTotals(idx);
   const labelOwe = `Owe: ${owe}`;
   const labelCollect = `Collect: ${collect}`;
+  const idAttr = idOverride ? ` id="${idOverride}"` : (interactive ? ' id="debtSummaryBar"' : '');
   if(interactive){
     return `
-      <div class="debt-summary-bar debt-trade-bar" id="debtSummaryBar" role="button" tabindex="0" aria-label="Adjust outstanding debts this turn">
+      <div class="debt-summary-bar debt-trade-bar"${idAttr} role="button" tabindex="0" aria-label="Adjust outstanding debts this turn">
         <div class="trade-seg seg-owe"><span class="ds-owe">${labelOwe}</span></div>
         <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
       </div>`;
   } else {
     return `
-      <div class="debt-summary-bar debt-trade-bar passive" aria-label="Outstanding debts summary (view only)">
+      <div class="debt-summary-bar debt-trade-bar passive"${idAttr} aria-label="Outstanding debts summary (view only)">
         <div class="trade-seg seg-owe"><span class="ds-owe">${labelOwe}</span></div>
         <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
       </div>`;
@@ -808,16 +813,14 @@ function buildQuickPadContent(){
   }
 
   const columnsClass = players.length === 2 ? 'quick-pad-columns single-opponent' : 'quick-pad-columns';
-  const grandTotals = aggregateTotals(activeIdx);
+  const debtBarHeader = buildDebtSummaryBar(activeIdx,{interactive:false,idOverride:'quickPadDebtBar'});
 
   pad.innerHTML=`
     <div class="quick-pad-header">
       <div class="quick-pad-grip"></div>
       <h3 class="quick-pad-title">Record Debts – ${escapeHtml(players[activeIdx].name)}</h3>
       <div class="quick-pad-timer" id="quickPadTimerDisplay" aria-label="Turn Timer (click to pause / resume)">${timeLeft}</div>
-      <div class="quick-pad-total-line" id="quickPadTotals">
-        <span class="owe">Owe: ${grandTotals.owe}</span> | <span class="collect">Collect: ${grandTotals.collect}</span>
-      </div>
+      ${debtBarHeader}
     </div>
     <div class="${columnsClass}" id="quickPadColumns">${columnsHtml}</div>
     <div class="quick-pad-footer">
@@ -1051,10 +1054,13 @@ function updateQuickPadColumnSummary(opponentIndex){
 }
 function updateQuickPadTotals(){
   if(!quickPadOpen) return;
-  const totalsEl=document.getElementById('quickPadTotals');
-  if(!totalsEl) return;
+  const bar=document.getElementById('quickPadDebtBar');
+  if(!bar) return;
   const { owe, collect } = aggregateTotals(currentPlayerIndex);
-  totalsEl.innerHTML = `<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
+  const oweSpan=bar.querySelector('.ds-owe');
+  const collectSpan=bar.querySelector('.ds-collect');
+  if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
+  if(collectSpan) collectSpan.textContent=`Collect: ${collect}`;
   updateClearDebtsButtonState();
 }
 
