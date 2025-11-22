@@ -1216,6 +1216,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   scrollbar-color: #444 #202020;
   align-items: flex-start;
   overscroll-behavior: none; /* Prevent overscroll/bounce */
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1235,6 +1237,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 4px 14px #000a;
   position:relative;
   height:auto;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 
 .qp-column-header {
