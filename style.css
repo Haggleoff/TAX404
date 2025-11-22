@@ -53,6 +53,8 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
+   2025-11-22 (Scroll Axis Isolation):
+     - Moved vertical scrolling from container to individual columns to prevent accidental horizontal swipes when scrolling content.
    ========================================================= */
 
 :root {
@@ -1208,13 +1210,13 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .quick-pad-columns {
   flex: 1 1 auto;
   overflow-x: auto;
-  overflow-y: scroll; /* Always show vertical scrollbar to prevent layout shift */
+  overflow-y: hidden; /* CHANGED: Hide Y scroll on container */
   display: flex;
   gap: 1.1rem;
   padding: 0.5rem 0.3rem 0.4rem;
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
-  align-items: flex-start;
+  align-items: stretch; /* CHANGED: Stretch columns to fill height */
   overscroll-behavior: none; /* Re-added per user request */
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
@@ -1236,7 +1238,9 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   gap:.65rem;
   box-shadow:0 4px 14px #000a;
   position:relative;
-  height:auto;
+  /* height:auto; REMOVED to allow stretch */
+  overflow-y: auto; /* CHANGED: Enable local Y scroll */
+  overscroll-behavior-y: contain; /* Added to prevent parent scroll chaining */
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
