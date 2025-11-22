@@ -58,6 +58,19 @@
  * UPDATED (2025-11-22 QUICKPAD HEADER DEBT BAR):
  * - QuickPad header debt bar now matches active player card visual intensity
  *   (non-dim) while remaining non-interactive (full width override).
+ *
+ * UPDATED (2025-11-22 POWER CARDS GROUP):
+ * - Added hidden "Power Cards" group in QuickPad.
+ * - Toggle button "Show/Hide Power Cards" added to column header.
+ * - Toggling affects all opponent columns globally.
+ * - Column height adjusts automatically.
+ *
+ * FIX (2025-11-22):
+ * - Fixed syntax error in variable name `maxPropsAmong`.
+ *
+ * UPDATED (2025-11-22 REORDER POWER CARDS):
+ * - Moved "Show/Hide Power Cards" button out of header to top of list.
+ * - Reordered categories: Power Cards group now appears ABOVE Haggie when shown.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -85,10 +98,30 @@ let tookCharityThisTurn = false;
 let quickPadArrowDismissed = false;
 
 /* Debt Data */
-const debtCategories = [
+// Original definition maintained for reference, but reordered in buildQuickPadContent
+const debtCategoriesOriginal = [
   "Haggie","Stomp&Bray","Lawffy","Finnley","Hoobert","Droolski","Vinnie","Twiggles",
   "Mav","Clauseby","Buckley","Bugsy","Wiggy","Squeak","Beebo","Wally","Tillie","Moozy"
 ];
+
+const powerCardCategories = [
+  "Stomp&Bray","Lawffy","Finnley","Hoobert","Droolski","Vinnie","Twiggles"
+];
+
+/* 
+   Reordered list logic:
+   1. Power Cards
+   2. Haggie (Money)
+   3. Normal Cards
+*/
+function getReorderedCategories() {
+  const others = debtCategoriesOriginal.filter(c => !powerCardCategories.includes(c) && c !== "Haggie");
+  // Power Cards first, then Haggie, then others
+  return [...powerCardCategories, "Haggie", ...others];
+}
+
+const debtCategories = getReorderedCategories(); // Use this for all logic now
+
 const debtCategoryGroups = {
   "Money": ["Haggie"],
   "Power Cards": ["Stomp&Bray","Lawffy","Finnley","Hoobert","Droolski","Vinnie","Twiggles"],
@@ -99,6 +132,7 @@ Object.keys(debtCategoryGroups).forEach(g => debtGroupCollapsed[g] = false);
 
 let debts = [];
 let totalAssetsForResults = 0;
+let showPowerCardsGroup = false;
 
 function ensureSheetElements(){
   if(!document.getElementById('debtSheetOverlay')){
@@ -767,6 +801,25 @@ function closeQuickPad(){
   },380);
 }
 
+function togglePowerCardsGroup(){
+  showPowerCardsGroup = !showPowerCardsGroup;
+  const pad = document.getElementById('quickPad');
+  if(!pad) return;
+  
+  // Toggle visibility of all power card rows
+  const powerRows = pad.querySelectorAll('.qp-cat-row.is-power-card');
+  powerRows.forEach(row => {
+    row.style.display = showPowerCardsGroup ? 'grid' : 'none';
+  });
+
+  // Update all toggle buttons text
+  const buttons = pad.querySelectorAll('.qp-toggle-btn');
+  buttons.forEach(btn => {
+    btn.textContent = showPowerCardsGroup ? "Hide Power Cards" : "Show Power Cards";
+  });
+}
+if(typeof window!=='undefined') window.togglePowerCardsGroup=togglePowerCardsGroup;
+
 function buildQuickPadContent(){
   const pad=document.getElementById('quickPad');
   if(!pad) return;
@@ -785,8 +838,13 @@ function buildQuickPadContent(){
       const net=getNetDebtValue(activeIdx,i,cat);
       const stateClass = net>0?'positive': net<0?'negative':'neutral';
       const displayVal = net===0?'—': (net>0?`+${net}`:`${net}`);
+      
+      const isPower = powerCardCategories.includes(cat);
+      const powerClass = isPower ? ' is-power-card' : '';
+      const displayStyle = (isPower && !showPowerCardsGroup) ? 'style="display:none;"' : '';
+
       catRows += `
-        <div class="qp-cat-row ${stateClass}" data-opponent="${i}" data-cat="${cat}">
+        <div class="qp-cat-row ${stateClass}${powerClass}" ${displayStyle} data-opponent="${i}" data-cat="${cat}">
           <div class="qp-icon" data-opponent="${i}" data-cat="${escapeHtml(cat)}">
             <img src="${getImageName(cat)}" alt="${escapeHtml(cat)}">
             <button type="button" class="qp-clear-btn" aria-label="Clear debt for ${escapeHtml(cat)}" tabindex="-1">✕</button>
@@ -800,6 +858,8 @@ function buildQuickPadContent(){
         </div>`;
     });
 
+    const btnText = showPowerCardsGroup ? "Hide Power Cards" : "Show Power Cards";
+
     columnsHtml += `
       <div class="qp-column" data-opponent="${i}">
         <div class="qp-column-header">
@@ -808,7 +868,10 @@ function buildQuickPadContent(){
             <span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>
           </div>
         </div>
-        <div class="qp-category-list">${catRows}</div>
+        <div class="qp-category-list">
+          <button class="qp-toggle-btn" onclick="togglePowerCardsGroup()">${btnText}</button>
+          ${catRows}
+        </div>
       </div>`;
   }
 
@@ -1035,6 +1098,13 @@ function rebuildQuickPadColumn(opponentIndex){
   if(headerSummary){
     headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
   }
+  
+  // Update button text in header just in case re-render lost state (though we rebuild innerHTML partly)
+  // Actually rebuildQuickPadColumn only updates rows and header summary usually?
+  // In this code block, we are just updating specific parts. 
+  // If we re-rendered the whole column HTML, we'd need to check showPowerCardsGroup.
+  // Current implementation updates rows individually below.
+  
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
   updateClearDebtsButtonState();
 }
