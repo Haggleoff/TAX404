@@ -53,10 +53,10 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
-   2025-11-22 (Scroll Sensitivity Fix):
-     - Changed scroll-snap-stop to 'normal' (was 'always') to prevent aggressive horizontal snatching during vertical scrolls.
-     - Maintained 'mandatory' snap for strict alignment at rest.
-     - Added touch-action explicit definition.
+   2025-11-22 (Scroll Stability):
+     - Increased column gap to 2.2rem to widen the snap threshold and reduce accidental switching.
+     - Restored 'always' snap stop to stabilize column focus.
+     - Re-added smooth scroll behavior for better feel.
    ========================================================= */
 
 :root {
@@ -1214,14 +1214,15 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   overflow-x: auto;
   overflow-y: scroll;
   display: flex;
-  gap: 1.1rem;
+  gap: 2.2rem; /* Increased from 1.1rem to widen snap threshold */
   padding: 0.5rem 0.3rem 0.4rem;
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
   align-items: flex-start;
   overscroll-behavior: none;
   scroll-snap-type: x mandatory;
-  touch-action: pan-x pan-y; /* Explicitly allow 2D panning */
+  scroll-behavior: smooth; /* Re-added smooth scrolling */
+  touch-action: pan-x pan-y;
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1242,7 +1243,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:relative;
   height:auto;
   scroll-snap-align: center;
-  scroll-snap-stop: normal; /* CHANGED: Relaxed snap grabbing to prevent accidental switching */
+  scroll-snap-stop: always; /* Restored to strict stop for stable focus */
 }
 
 .qp-column-header {
