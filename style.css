@@ -53,10 +53,10 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
-   2025-11-22 (Scroll Snap Restore):
-     - Reverted horizontal snap to 'mandatory' to restore strict column focus per user request.
-     - Removed CSS 'scroll-behavior: smooth' from container to improve native touch "railing" (axis locking).
-     - Maintained vertical scroll sync and fixed scrollbar thickness.
+   2025-11-22 (Scroll Sensitivity Fix):
+     - Changed scroll-snap-stop to 'normal' (was 'always') to prevent aggressive horizontal snatching during vertical scrolls.
+     - Maintained 'mandatory' snap for strict alignment at rest.
+     - Added touch-action explicit definition.
    ========================================================= */
 
 :root {
@@ -1220,8 +1220,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   scrollbar-color: #444 #202020;
   align-items: flex-start;
   overscroll-behavior: none;
-  scroll-snap-type: x mandatory; /* REVERTED to mandatory for strict snap */
-  /* REMOVED scroll-behavior: smooth to improve native touch railing */
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x pan-y; /* Explicitly allow 2D panning */
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1229,8 +1229,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 
 .qp-column {
   flex: 0 0 340px;
-  width: 340px; /* Explicit width */
-  min-width: 340px; /* Prevent crushing */
+  width: 340px;
+  min-width: 340px;
   background:#222;
   border:2px solid #2f2f2f;
   border-radius:20px;
@@ -1242,9 +1242,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:relative;
   height:auto;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
-  scrollbar-width: thin;
-  scrollbar-color: #444 #202020;
+  scroll-snap-stop: normal; /* CHANGED: Relaxed snap grabbing to prevent accidental switching */
 }
 
 .qp-column-header {
