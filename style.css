@@ -59,6 +59,14 @@
        - 'scroll-snap-stop: normal' (less sticky).
        - 'touch-action: pan-x pan-y' (allow diagonal movement).
        - 'scroll-behavior: smooth' (better feel).
+   2025-11-23 (Snap Removal):
+     - Removed scroll-snap-type from .quick-pad-columns and scroll-snap-align from .qp-column.
+   2025-11-23 (Dynamic Button Widths):
+     - Adjusted qp-cat-row grid columns to accommodate text buttons ("Borrow", "Settle", etc).
+     - Reduced qp-btn font size slightly.
+     - Forced equal flex width on .qp-btn.
+   2025-11-23 (Subtitle Arrow Thickness):
+     - Added .qp-arrow-sep class for the subheading arrow to enforce faux bold (text-shadow) and larger size.
    ========================================================= */
 
 :root {
@@ -1222,7 +1230,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   scrollbar-color: #444 #202020;
   align-items: flex-start;
   overscroll-behavior: none;
-  scroll-snap-type: x mandatory;
   scroll-behavior: smooth; /* Re-added smooth scrolling */
   touch-action: pan-x pan-y; /* Re-added 2D touch action */
 }
@@ -1244,8 +1251,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 4px 14px #000a;
   position:relative;
   height:auto;
-  scroll-snap-align: center;
-  scroll-snap-stop: normal; /* Restored to normal for fluid feel */
 }
 
 .qp-column-header {
@@ -1321,7 +1326,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   border-radius:18px;
   padding:.55rem .65rem .55rem .6rem;
   display:grid;
-  grid-template-columns:48px 1fr 70px 92px;
+  grid-template-columns:44px 1fr 50px 128px; /* Adjusted for wider buttons */
   align-items:center;
   gap:.55rem;
   position:relative;
@@ -1403,12 +1408,12 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 
 .qp-actions { display:flex; gap:.5rem; justify-content:center; }
 .qp-btn {
-  flex:1 1 auto;
+  flex:1 1 0; /* Forced equal width */
   background:#2a2a2a;
   border:2px solid #333;
   color:#d9d9d9;
   font-family:var(--font-display);
-  font-size:.95rem;
+  font-size:0.8rem; /* Reduced slightly for text fit */
   padding:.55rem 0;
   border-radius:14px;
   cursor:pointer;
@@ -1493,9 +1498,20 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   margin-top:.25rem;
 }
 
+/* Added class for faux-bold arrow separator in subtitle */
+.qp-arrow-sep {
+  color: var(--color-accent);
+  font-size: 1.4rem;
+  font-weight: 900;
+  text-shadow: 0 0 1px var(--color-accent);
+  margin: 0 0.35rem;
+  vertical-align: -1px;
+  display: inline-block;
+}
+
 @media (max-width:480px){
   .qp-column { flex:0 0 300px; height:auto; }
-  .qp-cat-row { grid-template-columns:42px 1fr 62px 88px; }
+  .qp-cat-row { grid-template-columns:38px 1fr 45px 124px; } /* Adjusted for wider buttons on mobile */
   .qp-icon { width:40px; height:40px; }
   .qp-clear-btn { font-size:1.7rem; }
   .qp-name { font-size:.85rem; }

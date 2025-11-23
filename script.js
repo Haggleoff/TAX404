@@ -79,10 +79,22 @@
  *
  * UPDATED (2025-11-23 REVERT):
  * - Removed JS Axis Locking.
- * 
+ *
  * FIX (2025-11-23 HTML PLACEHOLDER FIX):
  * - Updated ensureSheetElements and ensurePopupElements to correctly
  *   populate empty placeholder divs found in static HTML.
+ *
+ * UPDATED (2025-11-23 BUTTON TEXT UPDATE):
+ * - Replaced arrow symbols on QuickPad category buttons with dynamic text.
+ * - Red button: "Borrow" (when <=0) or "Settle" (when >0).
+ * - Green button: "Lend" (when >=0) or "Repay" (when <0).
+ *
+ * UPDATED (2025-11-23 TERMINOLOGY UPDATE):
+ * - Changed status bar text from "Owe" to "Debt" and "Collect" to "Credit".
+ * 
+ * UPDATED (2025-11-23 SUBTITLE SYMBOL UPDATE):
+ * - Changed subtitle separator from "❮ ❯" to "⇄".
+ * - Utilized new CSS class .qp-arrow-sep for styling (thicker, beige).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -304,8 +316,8 @@ function buildTaxBreaksBadge(value, interactive=false){
 /* ---------- Debt Summary Bars ---------- */
 function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true, idOverride=null } = {}){
   const { owe, collect } = aggregateTotals(idx);
-  const labelOwe = `Owe: ${owe}`;
-  const labelCollect = `Collect: ${collect}`;
+  const labelOwe = `Debt: ${owe}`;
+  const labelCollect = `Credit: ${collect}`;
   const idAttr = idOverride ? ` id="${idOverride}"` : (interactive ? ' id="debtSummaryBar"' : '');
   if(interactive){
     return `
@@ -763,8 +775,8 @@ function refreshOverviewOnly(){
     const { owe, collect } = aggregateTotals(currentPlayerIndex);
     const oweSpan=bar.querySelector('.ds-owe');
     const collectSpan=bar.querySelector('.ds-collect');
-    if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
-    if(collectSpan) collectSpan.textContent=`Collect: ${collect}`;
+    if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
+    if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
   }
 
   document.querySelectorAll('.player-card').forEach(card=>{
@@ -775,8 +787,8 @@ function refreshOverviewOnly(){
       const { owe, collect } = aggregateTotals(idx);
       const oweSpan = passiveBar.querySelector('.ds-owe');
       const collectSpan = passiveBar.querySelector('.ds-collect');
-      if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
-      if(collectSpan) collectSpan.textContent=`Collect: ${collect}`;
+      if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
+      if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
     }
   });
 
@@ -871,6 +883,13 @@ function buildQuickPadContent(){
       const powerClass = isPower ? ' is-power-card' : '';
       const displayStyle = (isPower && !showPowerCardsGroup) ? 'style="display:none;"' : '';
 
+      // Determine button labels based on net debt
+      // If net > 0 (They owe you): Red="Settle", Green="Lend"
+      // If net < 0 (You owe them): Red="Borrow", Green="Repay"
+      // If net == 0 (Neutral): Red="Borrow", Green="Lend"
+      const oweText = net > 0 ? "Settle" : "Borrow";
+      const collectText = net < 0 ? "Repay" : "Lend";
+
       catRows += `
         <div class="qp-cat-row ${stateClass}${powerClass}" ${displayStyle} data-opponent="${i}" data-cat="${cat}">
           <div class="qp-icon" data-opponent="${i}" data-cat="${escapeHtml(cat)}">
@@ -880,8 +899,8 @@ function buildQuickPadContent(){
           <div class="qp-name">${escapeHtml(cat)}</div>
           <div class="qp-value" data-value>${displayVal}</div>
           <div class="qp-actions">
-            <button type="button" class="qp-btn qp-owe" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▼</button>
-            <button type="button" class="qp-btn qp-collect" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">▲</button>
+            <button type="button" class="qp-btn qp-owe" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${oweText}</button>
+            <button type="button" class="qp-btn qp-collect" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${collectText}</button>
           </div>
         </div>`;
     });
@@ -893,7 +912,7 @@ function buildQuickPadContent(){
         <div class="qp-column-header">
           <h4 class="qp-opponent-name">${escapeHtml(players[i].name)}</h4>
           <div class="qp-summary-line">
-            <span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>
+            <span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>
           </div>
         </div>
         <div class="qp-category-list">
@@ -966,7 +985,7 @@ function updateQuickPadSubtitle(){
   const opponentIndex = getFocusedQuickPadOpponent();
   const activeName = players[currentPlayerIndex].name;
   const oppName = (opponentIndex !== null && players[opponentIndex]) ? players[opponentIndex].name : "...";
-  sub.textContent = `${activeName} ❮ ❯ ${oppName}`;
+  sub.innerHTML = `${escapeHtml(activeName)} <span class="qp-arrow-sep">⇄</span> ${escapeHtml(oppName)}`;
 }
 
 function bindQuickPadEvents(){
@@ -1111,6 +1130,13 @@ function updateQuickPadRow(opponentIndex, cat){
   const prev = prevRaw==='' ? 0 : parseInt(prevRaw,10);
   const displayVal = net===0?'—': (net>0?`+${net}`:`${net}`);
   valEl.textContent=displayVal;
+
+  // Update button text dynamically
+  const oweBtn = row.querySelector('.qp-owe');
+  const collectBtn = row.querySelector('.qp-collect');
+  if(oweBtn) oweBtn.textContent = net > 0 ? "Settle" : "Borrow";
+  if(collectBtn) collectBtn.textContent = net < 0 ? "Repay" : "Lend";
+
   row.classList.remove('positive','negative','neutral','pulse-green','pulse-red');
   if(net>0){
     row.classList.add('positive');
@@ -1136,14 +1162,8 @@ function rebuildQuickPadColumn(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>`;
   }
-  
-  // Update button text in header just in case re-render lost state (though we rebuild innerHTML partly)
-  // Actually rebuildQuickPadColumn only updates rows and header summary usually?
-  // In this code block, we are just updating specific parts. 
-  // If we re-rendered the whole column HTML, we'd need to check showPowerCardsGroup.
-  // Current implementation updates rows individually below.
   
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
   updateClearDebtsButtonState();
@@ -1158,7 +1178,7 @@ function updateQuickPadColumnSummary(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Collect: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>`;
   }
   updateClearDebtsButtonState();
 }
@@ -1169,8 +1189,8 @@ function updateQuickPadTotals(){
   const { owe, collect } = aggregateTotals(currentPlayerIndex);
   const oweSpan=bar.querySelector('.ds-owe');
   const collectSpan=bar.querySelector('.ds-collect');
-  if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
-  if(collectSpan) collectSpan.textContent=`Collect: ${collect}`;
+  if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
+  if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
   updateClearDebtsButtonState();
 }
 
