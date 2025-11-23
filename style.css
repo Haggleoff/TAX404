@@ -53,10 +53,12 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
-   2025-11-23 (Axis Locking Fix):
-     - Applied 'touch-action: pan-y' to .qp-column to physically block horizontal scroll events from triggering column switching when touching the card body.
-     - Applied 'touch-action: pan-x pan-y' to .qp-column-header to allow intentional column swiping via headers.
-     - Maintained 'mandatory' snap and scroll behaviors for consistency.
+   2025-11-23 (REVERTED Scroll Logic):
+     - REMOVED JS Axis Locking (user request).
+     - RESTORED CSS-native handling:
+       - 'scroll-snap-stop: normal' (less sticky).
+       - 'touch-action: pan-x pan-y' (allow diagonal movement).
+       - 'scroll-behavior: smooth' (better feel).
    ========================================================= */
 
 :root {
@@ -1222,7 +1224,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   overscroll-behavior: none;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth; /* Re-added smooth scrolling */
-  touch-action: pan-x pan-y;
+  touch-action: pan-x pan-y; /* Re-added 2D touch action */
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1243,8 +1245,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:relative;
   height:auto;
   scroll-snap-align: center;
-  scroll-snap-stop: always; /* Restored to strict stop for stable focus */
-  touch-action: pan-y; /* LOCKS column body to vertical-only scroll */
+  scroll-snap-stop: normal; /* Restored to normal for fluid feel */
 }
 
 .qp-column-header {
@@ -1260,7 +1261,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:sticky;
   top:0;
   z-index:10;
-  touch-action: pan-x pan-y; /* Explicitly allow horizontal swipe on header */
 }
 
 .qp-column-header .qp-opponent-name {
@@ -1312,6 +1312,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   gap:.6rem;
   padding:.3rem .15rem 0.2rem;
   overflow:visible;
+  touch-action: pan-x pan-y;
 }
 
 .qp-cat-row {

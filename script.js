@@ -74,8 +74,15 @@
  *
  * UPDATED (2025-11-22 QUICKPAD HEADER SUBTITLE):
  * - Removed player name from title "Record Debts".
- * - Added subtitle line below title: "PlayerName ⇔ OpponentName".
+ * - Added subtitle line below title: "PlayerName ❮ ❯ OpponentName".
  * - Opponent name updates dynamically based on focused column.
+ *
+ * UPDATED (2025-11-23 REVERT):
+ * - Removed JS Axis Locking.
+ * 
+ * FIX (2025-11-23 HTML PLACEHOLDER FIX):
+ * - Updated ensureSheetElements and ensurePopupElements to correctly
+ *   populate empty placeholder divs found in static HTML.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -140,24 +147,39 @@ let totalAssetsForResults = 0;
 let showPowerCardsGroup = false;
 
 function ensureSheetElements(){
-  if(!document.getElementById('debtSheetOverlay')){
-    const d=document.createElement('div');
-    d.id='debtSheetOverlay';
-    d.innerHTML='<div class="debt-sheet" id="debtSheet"></div>';
+  // 1. Debt Sheet
+  let d = document.getElementById('debtSheetOverlay');
+  if(!d){
+    d = document.createElement('div');
+    d.id = 'debtSheetOverlay';
     document.body.appendChild(d);
   }
-  if(!document.getElementById('finalDetailSheetOverlay')){
-    const f=document.createElement('div');
-    f.id='finalDetailSheetOverlay';
-    f.className='dimOverlay';
-    f.innerHTML='<div class="final-detail-sheet" id="finalDetailSheet"></div>';
+  // If the inner container is missing, inject it
+  if(!document.getElementById('debtSheet')){
+    d.innerHTML = '<div class="debt-sheet" id="debtSheet"></div>';
+  }
+
+  // 2. Final Detail Sheet
+  let f = document.getElementById('finalDetailSheetOverlay');
+  if(!f){
+    f = document.createElement('div');
+    f.id = 'finalDetailSheetOverlay';
+    f.className = 'dimOverlay';
     document.body.appendChild(f);
   }
-  if(!document.getElementById('quickPadOverlay')){
-    const q=document.createElement('div');
-    q.id='quickPadOverlay';
-    q.innerHTML='<div class="quick-pad" id="quickPad"></div>';
+  if(!document.getElementById('finalDetailSheet')){
+    f.innerHTML = '<div class="final-detail-sheet" id="finalDetailSheet"></div>';
+  }
+
+  // 3. Quick Pad
+  let q = document.getElementById('quickPadOverlay');
+  if(!q){
+    q = document.createElement('div');
+    q.id = 'quickPadOverlay';
     document.body.appendChild(q);
+  }
+  if(!document.getElementById('quickPad')){
+    q.innerHTML = '<div class="quick-pad" id="quickPad"></div>';
   }
 }
 ensureSheetElements();
@@ -1848,12 +1870,17 @@ function restorePlayerNamesAndSetup(){
 
 /* ---------- Popup system ---------- */
 function ensurePopupElements(){
-  let overlay=document.getElementById('customPopupOverlay');
+  let overlay = document.getElementById('customPopupOverlay');
   if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='customPopupOverlay';
-    overlay.className='dimOverlay';
-    overlay.innerHTML=`
+    overlay = document.createElement('div');
+    overlay.id = 'customPopupOverlay';
+    overlay.className = 'dimOverlay';
+    document.body.appendChild(overlay);
+  }
+  
+  // Fix: Check for inner content (the wrapper) rather than the message div alone
+  if(!document.getElementById('customPopupBox')){
+    overlay.innerHTML = `
       <div class="popupBox" id="customPopupBox">
         <div id="customPopupMessage"></div>
         <div id="customPopupButtons" style="display:flex; gap:.6rem; flex-wrap:wrap; justify-content:center; margin-top:0.9rem;">
@@ -1861,9 +1888,9 @@ function ensurePopupElements(){
           <button type="button" id="customPopupNo" class="btn-neutral styled-btn">No</button>
         </div>
       </div>`;
-    document.body.appendChild(overlay);
   }
 }
+
 function resetStandardPopupButtons(){
   const btnBox=document.getElementById('customPopupButtons');
   if(btnBox){
@@ -1879,18 +1906,27 @@ function customPopup(message, callback, isHtml=false, yesText="Yes", noText="No"
   const msg=document.getElementById('customPopupMessage');
   const yes=document.getElementById('customPopupYes');
   const no=document.getElementById('customPopupNo');
-  msg.innerHTML=isHtml? message : message.replace(/\n/g,"<br>");
+  
+  // Should be safe now that ensurePopupElements populates the DOM
+  if(msg) {
+    msg.innerHTML=isHtml? message : message.replace(/\n/g,"<br>");
+  }
+  
   overlay.style.display='flex';
+  
   if(typeof callback!== 'function'){
-    yes.textContent='OK'; no.style.display='none';
-    yes.onclick=()=>overlay.style.display='none';
+    if(yes) { yes.textContent='OK'; yes.onclick=()=>overlay.style.display='none'; }
+    if(no) { no.style.display='none'; }
   } else if(okOnly){
-    yes.textContent='OK'; no.style.display='none';
-    yes.onclick=()=>{ overlay.style.display='none'; callback(); };
+    if(yes) { yes.textContent='OK'; yes.onclick=()=>{ overlay.style.display='none'; callback(); }; }
+    if(no) { no.style.display='none'; }
   } else {
-    yes.textContent=yesText; no.textContent=noText; no.style.display='inline-block';
-    yes.onclick=()=>{ overlay.style.display='none'; callback(true); };
-    no.onclick=()=>{ overlay.style.display='none'; callback(false); };
+    if(yes) { yes.textContent=yesText; yes.onclick=()=>{ overlay.style.display='none'; callback(true); }; }
+    if(no) { 
+      no.textContent=noText; 
+      no.style.display='inline-block';
+      no.onclick=()=>{ overlay.style.display='none'; callback(false); }; 
+    }
   }
 }
 
@@ -1976,8 +2012,11 @@ function escapeHtml(str){
 window.dismissDisclaimer=function(){
   document.getElementById('disclaimerOverlay').style.display='none';
   document.getElementById('playerSetupBox').style.display='block';
+  
+  // Ensure elements are populated correctly for the static HTML
   ensurePopupElements();
   ensureSheetElements();
+  
   updateAddPlayerButtonAppearance();
 };
 
