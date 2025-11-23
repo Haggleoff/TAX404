@@ -74,12 +74,8 @@
  *
  * UPDATED (2025-11-22 QUICKPAD HEADER SUBTITLE):
  * - Removed player name from title "Record Debts".
- * - Added subtitle line below title: "PlayerName ❮ ❯ OpponentName".
+ * - Added subtitle line below title: "PlayerName ⇔ OpponentName".
  * - Opponent name updates dynamically based on focused column.
- * 
- * UPDATED (2025-11-23 AXIS LOCKING):
- * - Integrated strict scroll-direction locking inside bindQuickPadEvents.
- * - Prevents diagonal swipes from accidentally switching columns.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -985,59 +981,6 @@ function bindQuickPadEvents(){
         }
       });
     }, { passive:true });
-
-    /* ---------- Axis Locking Logic ---------- */
-    let startX = 0;
-    let startY = 0;
-    let isLocked = false;
-
-    columns.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        
-        startX = e.touches[0].pageX;
-        startY = e.touches[0].pageY;
-        isLocked = false;
-        
-        // Reset both axes to allow scrolling again
-        columns.style.overflowX = '';
-        columns.style.overflowY = '';
-    }, { passive: true });
-
-    columns.addEventListener('touchmove', (e) => {
-        if (isLocked || e.touches.length !== 1) return; 
-
-        const currentX = e.touches[0].pageX;
-        const currentY = e.touches[0].pageY;
-        
-        const dx = Math.abs(currentX - startX);
-        const dy = Math.abs(currentY - startY);
-
-        // Threshold (10px) to ignore tiny accidental jitters
-        if (dx > 10 || dy > 10) {
-            isLocked = true;
-            
-            if (dx > dy) {
-                // User is swiping HORIZONTALLY (Column Switch)
-                // -> Lock Vertical Scroll
-                columns.style.overflowY = 'hidden'; 
-                columns.style.overflowX = 'auto'; 
-            } else {
-                // User is swiping VERTICALLY (Scrolling list)
-                // -> Lock Horizontal Scroll (Prevent column jumping)
-                columns.style.overflowX = 'hidden';
-                columns.style.overflowY = 'auto'; 
-            }
-        }
-    }, { passive: true });
-
-    const resetScroll = () => {
-        columns.style.overflowX = '';
-        columns.style.overflowY = '';
-        isLocked = false;
-    };
-
-    columns.addEventListener('touchend', resetScroll);
-    columns.addEventListener('touchcancel', resetScroll);
   }
 }
 

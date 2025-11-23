@@ -3,11 +3,60 @@
    (Integrated Turn Layout – Active Pop + Debt Sheet + Animations)
 
    UPDATED HISTORY
-   2025-11-23 (Axis Locking Final):
-     - Removed all 'touch-action' hacks.
-     - Maintained 'mandatory' snap for strict alignment.
-     - Kept wider 2.2rem gap for safety.
-     - JS will handle dynamic overflow locking.
+   2025-09-27:
+     - Passive debt summary bar visible on inactive player cards (.debt-summary-bar.passive).
+     - Active player debt summary bar repositioned (handled in markup).
+     - Added interactive Tax Breaks Badge tooltip (active card only).
+   2025-09-27 (Late Patch):
+     - Unified tooltip system for Tax Breaks badge and Normal Cards info icon.
+   2025-09-28:
+     - Added .add-player-maxed state styling for disabled visual at 7-player cap.
+   2025-09-29:
+     - Added Landlord winner styling (property tie-break outcome).
+   2025-11-02:
+     - Debt Sheet quick-switch chips row styling.
+   2025-11-20:
+     - Added Outstanding Debt QuickPad (.quick-pad) multi-opponent workflow.
+   2025-11-20 Patch Series:
+     - Vertical overflow fixes, column height tuning, sticky headers, single-opponent centering.
+     - Added aggregated totals line & active turn timer inside QuickPad.
+   2025-11-21:
+     - Trade style debt summary bar (dual segment) + gapless divider.
+     - Poof animation for losing in-progress streak when Charity selected.
+     - Tooltip overlap z-index fix.
+     - Outstanding Debts bottom sheet overscroll suppression.
+     - QuickPad footer buttons forced side-by-side (nowrap).
+     - Clear Debts dialog and naming revisions.
+     - Category thumbnail clear (X) interaction added.
+   2025-11-21 (Final Overlay Patch):
+     - X clear button now fills entire thumbnail (full overlay).
+   2025-11-21 (Scroll Arrow Patch):
+     - Added translucent pulsing right-edge scroll hint arrow in QuickPad for >2 players.
+     - Arrow fades permanently upon first horizontal scroll.
+   2025-11-21 (Arrowhead Revision):
+     - Scroll hint arrow changed to standalone larger thicker arrowhead (no circle, no tail).
+   2025-11-21 (Arrow Symbol Replacement):
+     - Scroll hint arrow now uses the ❯ character instead of CSS triangle.
+   2025-11-22:
+     - QuickPad header debt bar now full width with active visual intensity (override passive dim) while remaining non-interactive.
+   2025-11-22 (Power Cards Group):
+     - Removed fixed min-height on qp-column to allow dynamic resizing.
+     - Added styling for Power Cards toggle button.
+   2025-11-22 (Layout Fixes):
+     - Forced vertical scrollbar on QuickPad columns to prevent width shift when toggling groups.
+     - Updated toggle button aesthetics to match app theme.
+   2025-11-22 (Text Overflow Fix):
+     - Added text-overflow:ellipsis and overflow:hidden to .qp-name to prevent long names like "Stomp&Bray" from pushing column width.
+   2025-11-22 (Column Gap Fix):
+     - Reduced bottom padding on .qp-column and .qp-category-list to eliminate excess empty space at the bottom of columns.
+   2025-11-22 (Overscroll Fix):
+     - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
+   2025-11-22 (Header Subtitle):
+     - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
+   2025-11-23 (Axis Locking Fix):
+     - Applied 'touch-action: pan-y' to .qp-column to physically block horizontal scroll events from triggering column switching when touching the card body.
+     - Applied 'touch-action: pan-x pan-y' to .qp-column-header to allow intentional column swiping via headers.
+     - Maintained 'mandatory' snap and scroll behaviors for consistency.
    ========================================================= */
 
 :root {
@@ -1172,7 +1221,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   align-items: flex-start;
   overscroll-behavior: none;
   scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
+  scroll-behavior: smooth; /* Re-added smooth scrolling */
+  touch-action: pan-x pan-y;
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1193,7 +1243,8 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:relative;
   height:auto;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
+  scroll-snap-stop: always; /* Restored to strict stop for stable focus */
+  touch-action: pan-y; /* LOCKS column body to vertical-only scroll */
 }
 
 .qp-column-header {
@@ -1209,6 +1260,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   position:sticky;
   top:0;
   z-index:10;
+  touch-action: pan-x pan-y; /* Explicitly allow horizontal swipe on header */
 }
 
 .qp-column-header .qp-opponent-name {
