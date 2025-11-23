@@ -53,10 +53,10 @@
      - Re-added overscroll-behavior:none to .quick-pad-columns to prevent rubber-banding per user request.
    2025-11-22 (Header Subtitle):
      - Added .quick-pad-subtitle for "Player A ⇔ Player B" display.
-   2025-11-22 (Scroll Fixes):
-     - Reverted scroll axis isolation (columns now scroll vertically together).
-     - Changed horizontal snap to 'proximity' to prevent accidental switching during vertical scrolls.
-     - Fixed vertical scrollbar thickness.
+   2025-11-22 (Scroll Snap Restore):
+     - Reverted horizontal snap to 'mandatory' to restore strict column focus per user request.
+     - Removed CSS 'scroll-behavior: smooth' from container to improve native touch "railing" (axis locking).
+     - Maintained vertical scroll sync and fixed scrollbar thickness.
    ========================================================= */
 
 :root {
@@ -1212,16 +1212,16 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .quick-pad-columns {
   flex: 1 1 auto;
   overflow-x: auto;
-  overflow-y: scroll; /* REVERTED: Container handles Y scroll again */
+  overflow-y: scroll;
   display: flex;
   gap: 1.1rem;
   padding: 0.5rem 0.3rem 0.4rem;
   scrollbar-width: thin;
   scrollbar-color: #444 #202020;
-  align-items: flex-start; /* REVERTED: Align top */
-  overscroll-behavior: none; /* Maintained overscroll fix */
-  scroll-snap-type: x proximity; /* CHANGED: mandatory -> proximity to fix accidental swipes */
-  scroll-behavior: smooth;
+  align-items: flex-start;
+  overscroll-behavior: none;
+  scroll-snap-type: x mandatory; /* REVERTED to mandatory for strict snap */
+  /* REMOVED scroll-behavior: smooth to improve native touch railing */
 }
 .quick-pad-columns.single-opponent { justify-content:center; overflow-x:hidden; }
 .quick-pad-columns::-webkit-scrollbar { height:10px; }
@@ -1240,8 +1240,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   gap:.65rem;
   box-shadow:0 4px 14px #000a;
   position:relative;
-  height:auto; /* REVERTED */
-  /* overflow-y removed so content expands column and parent scrolls */
+  height:auto;
   scroll-snap-align: center;
   scroll-snap-stop: always;
   scrollbar-width: thin;
