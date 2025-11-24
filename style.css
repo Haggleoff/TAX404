@@ -73,6 +73,12 @@
      - Added styling for Property Stack Price control (horizontal boxes).
    2025-11-24 (Gap Reduction):
      - Reduced top margin of Property Stack Price container to bring it closer to player cards.
+   2025-11-24 (Column Header Subtitle):
+     - Removed main subtitle styles as it is now integrated into column headers.
+   2025-11-24 (Grip Removal):
+     - Removed visual grip (small horizontal line) from QuickPad and associated styles.
+   2025-11-24 (Scroll Arrow Removal):
+     - Removed the pulsing scroll hint arrow styles as it has been removed from functionality.
    ========================================================= */
 
 :root {
@@ -1188,15 +1194,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   text-align:center;
   padding:0 .9rem;
 }
-/* New subtitle for active player vs opponent */
-.quick-pad-subtitle {
-  margin: -0.2rem 0 0.2rem;
-  font-size: 1rem;
-  font-family: var(--font-display);
-  color: #e4e4e4;
-  letter-spacing: 0.4px;
-  text-align: center;
-}
 
 .quick-pad-timer {
   position:absolute;
@@ -1467,44 +1464,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .qp-cat-row.pulse-green { animation:qpPulseGreen .7s ease-out; }
 .qp-cat-row.pulse-red { animation:qpPulseRed .7s ease-out; }
 
-/* Scroll Hint Arrow (QuickPad) - Using ❯ symbol */
-.quick-pad-scroll-arrow {
-  position:absolute;
-  top:50%;
-  right:12px;
-  transform:translateY(-50%);
-  width:72px;
-  height:72px;
-  pointer-events:none;
-  z-index:40;
-  animation:qpArrowPulse 1.4s ease-in-out infinite;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:var(--font-display);
-}
-.quick-pad-scroll-arrow::before {
-  content:"❯";
-  position:absolute;
-  top:50%; left:50%;
-  transform:translate(-50%,-50%) scale(1);
-  font-size:64px;
-  line-height:1;
-  color:rgba(212,175,127,0.85);
-  text-shadow:0 2px 4px #000a, 0 0 8px rgba(212,175,127,0.55);
-}
-@keyframes qpArrowPulse {
-  0%{transform:translateY(-50%) scale(.92); opacity:.55;}
-  50%{transform:translateY(-50%) scale(1.08); opacity:.95;}
-  100%{transform:translateY(-50%) scale(.92); opacity:.55;}
-}
-.quick-pad-scroll-arrow.hide {
-  animation:none;
-  transition:opacity .55s ease, transform .55s ease;
-  opacity:0;
-  transform:translateY(-50%) scale(.85);
-}
-
 /* QuickPad header debt bar override (full width, active intensity, non-interactive) */
 .quick-pad-header #quickPadDebtBar.debt-summary-bar.debt-trade-bar.passive {
   opacity:1;
@@ -1589,10 +1548,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .qp-value { font-size:.85rem; }
   .qp-btn { font-size:.85rem; padding:.5rem 0; }
   .quick-pad-timer { font-size:1.9rem; min-width:54px; }
-  .quick-pad-scroll-arrow { width:60px; height:60px; }
-  .quick-pad-scroll-arrow::before {
-    font-size:52px;
-  }
 }
 
 /* Reduced motion (repeated for QuickPad specifics) */
@@ -1600,7 +1555,6 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   .tax-breaks-badge .tb-svg { animation:none !important; }
   .flicker-start { animation:none; }
   .qp-clear-btn { transition:none; }
-  .quick-pad-scroll-arrow { animation:none !important; }
 }
 
 /* (End of file) */
