@@ -67,6 +67,12 @@
      - Forced equal flex width on .qp-btn.
    2025-11-23 (Subtitle Arrow Thickness):
      - Added .qp-arrow-sep class for the subheading arrow to enforce faux bold (text-shadow) and larger size.
+   2025-11-24 (Button Colors):
+     - Added .qp-settle (Blue) and .qp-repay (Beige) styling for QuickPad buttons.
+   2025-11-24 (Property Stack Price):
+     - Added styling for Property Stack Price control (horizontal boxes).
+   2025-11-24 (Gap Reduction):
+     - Reduced top margin of Property Stack Price container to bring it closer to player cards.
    ========================================================= */
 
 :root {
@@ -1428,6 +1434,25 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
 .qp-btn.qp-collect { background:#1f5e30; border-color:#2f7d46; color:#e9ffe9; }
 .qp-btn.qp-collect:hover { background:#2f7d46; }
 
+/* New button variants for QuickPad */
+.qp-btn.qp-settle {
+  background: #1c3a5e;
+  border-color: #3e6ca8;
+  color: #e3f2ff;
+}
+.qp-btn.qp-settle:hover {
+  background: #284a75;
+}
+
+.qp-btn.qp-repay {
+  background: #4e3e26;
+  border-color: #b38954;
+  color: #ffefd6;
+}
+.qp-btn.qp-repay:hover {
+  background: #635134;
+}
+
 .quick-pad-footer {
   margin-top:.6rem;
   display:flex;
@@ -1507,6 +1532,52 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   margin: 0 0.35rem;
   vertical-align: -1px;
   display: inline-block;
+}
+
+/* Property Stack Price Control */
+.property-stack-price-container {
+  margin: 0.25rem auto 0.5rem;
+  text-align: center;
+  max-width: 90%;
+}
+.psp-label {
+  font-family: var(--font-display);
+  color: #d9d9d9;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.4rem;
+}
+.psp-options {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.psp-box {
+  width: 36px;
+  height: 36px;
+  background: #2a2a2a;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.psp-box:hover {
+  border-color: #555;
+  color: #ccc;
+}
+.psp-box.selected {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #232323;
+  box-shadow: 0 0 8px rgba(212, 175, 127, 0.4);
+  transform: scale(1.1);
 }
 
 @media (max-width:480px){

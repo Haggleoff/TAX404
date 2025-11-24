@@ -95,6 +95,22 @@
  * UPDATED (2025-11-23 SUBTITLE SYMBOL UPDATE):
  * - Changed subtitle separator from "❮ ❯" to "⇄".
  * - Utilized new CSS class .qp-arrow-sep for styling (thicker, beige).
+ *
+ * UPDATED (2025-11-24 TERMINOLOGY UPDATE):
+ * - Changed status bar text from "Debt" to "Borrowed" and "Credit" to "Loaned".
+ * 
+ * UPDATED (2025-11-24 BUTTON TEXT UPDATE):
+ * - Renamed QuickPad buttons: "Borrow" -> "Owe", "Lend" -> "Due".
+ * 
+ * UPDATED (2025-11-24 BUTTON COLOR UPDATE):
+ * - "Settle" button changed to Blue.
+ * - "Repay" button changed to Beige.
+ * 
+ * UPDATED (2025-11-24 STATUS BAR UPDATE):
+ * - Changed status bar text: "Borrowed" -> "Owe", "Loaned" -> "Due".
+ * 
+ * UPDATED (2025-11-24 PROPERTY STACK PRICE):
+ * - Added visual control for "Property Stack Price" (3-10, default 5).
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -117,6 +133,8 @@ let normalDonated = 0;
 let powerDonated = 0;
 let tempProgress = 0;
 let tookCharityThisTurn = false;
+
+let propertyStackPrice = 5; // Default Property Stack Price
 
 /* Scroll Arrow Session State */
 let quickPadArrowDismissed = false;
@@ -316,8 +334,8 @@ function buildTaxBreaksBadge(value, interactive=false){
 /* ---------- Debt Summary Bars ---------- */
 function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true, idOverride=null } = {}){
   const { owe, collect } = aggregateTotals(idx);
-  const labelOwe = `Debt: ${owe}`;
-  const labelCollect = `Credit: ${collect}`;
+  const labelOwe = `Owe: ${owe}`;
+  const labelCollect = `Due: ${collect}`;
   const idAttr = idOverride ? ` id="${idOverride}"` : (interactive ? ' id="debtSummaryBar"' : '');
   if(interactive){
     return `
@@ -691,6 +709,36 @@ function initInteractiveTooltips(){
   }, { passive:true });
 }
 
+/* ---------- Property Stack Price Logic ---------- */
+function setPropertyStackPrice(val) {
+  propertyStackPrice = val;
+  updatePSPVisuals();
+}
+
+function updatePSPVisuals(){
+  const boxes = document.querySelectorAll('.psp-box');
+  boxes.forEach(b => {
+    const v = parseInt(b.dataset.val, 10);
+    if(v === propertyStackPrice) b.classList.add('selected');
+    else b.classList.remove('selected');
+  });
+}
+
+function buildPropertyStackPriceControl(){
+  const opts = [3,4,5,6,7,8,9,10];
+  const boxes = opts.map(n => {
+    const sel = n === propertyStackPrice ? ' selected' : '';
+    return `<div class="psp-box${sel}" data-val="${n}" onclick="setPropertyStackPrice(${n})">${n}</div>`;
+  }).join('');
+  
+  return `
+    <div class="property-stack-price-container">
+      <div class="psp-label">Property Stack Price</div>
+      <div class="psp-options">${boxes}</div>
+    </div>
+  `;
+}
+
 /* ---------- Render cards ---------- */
 function showPlayerCards(){
   ensureSheetElements();
@@ -706,10 +754,12 @@ function showPlayerCards(){
   }
   const mc=document.getElementById('mainGameContainer');
   if(mc){
+    const pspControl = buildPropertyStackPriceControl();
     mc.innerHTML=`
       <div class="player-cards-scroll-container">
         <div class="player-cards-row" id="playerCardsRow">${html}</div>
       </div>
+      ${pspControl}
       <div style="text-align:center;margin:1.2rem auto 0;">
         <button type="button" id="endgameTaxesBtn" class="styled-btn" onclick="showEndgame()">Endgame Taxes</button>
       </div>`;
@@ -775,8 +825,8 @@ function refreshOverviewOnly(){
     const { owe, collect } = aggregateTotals(currentPlayerIndex);
     const oweSpan=bar.querySelector('.ds-owe');
     const collectSpan=bar.querySelector('.ds-collect');
-    if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
-    if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
+    if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
+    if(collectSpan) collectSpan.textContent=`Due: ${collect}`;
   }
 
   document.querySelectorAll('.player-card').forEach(card=>{
@@ -787,8 +837,8 @@ function refreshOverviewOnly(){
       const { owe, collect } = aggregateTotals(idx);
       const oweSpan = passiveBar.querySelector('.ds-owe');
       const collectSpan = passiveBar.querySelector('.ds-collect');
-      if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
-      if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
+      if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
+      if(collectSpan) collectSpan.textContent=`Due: ${collect}`;
     }
   });
 
@@ -884,11 +934,14 @@ function buildQuickPadContent(){
       const displayStyle = (isPower && !showPowerCardsGroup) ? 'style="display:none;"' : '';
 
       // Determine button labels based on net debt
-      // If net > 0 (They owe you): Red="Settle", Green="Lend"
-      // If net < 0 (You owe them): Red="Borrow", Green="Repay"
-      // If net == 0 (Neutral): Red="Borrow", Green="Lend"
-      const oweText = net > 0 ? "Settle" : "Borrow";
-      const collectText = net < 0 ? "Repay" : "Lend";
+      // If net > 0 (They owe you): Red="Settle" (BLUE), Green="Due"
+      // If net < 0 (You owe them): Red="Owe", Green="Repay" (BEIGE)
+      // If net == 0 (Neutral): Red="Owe", Green="Due"
+      const oweText = net > 0 ? "Settle" : "Owe";
+      const collectText = net < 0 ? "Repay" : "Due";
+
+      const isSettle = net > 0;
+      const isRepay = net < 0;
 
       catRows += `
         <div class="qp-cat-row ${stateClass}${powerClass}" ${displayStyle} data-opponent="${i}" data-cat="${cat}">
@@ -899,8 +952,8 @@ function buildQuickPadContent(){
           <div class="qp-name">${escapeHtml(cat)}</div>
           <div class="qp-value" data-value>${displayVal}</div>
           <div class="qp-actions">
-            <button type="button" class="qp-btn qp-owe" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${oweText}</button>
-            <button type="button" class="qp-btn qp-collect" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${collectText}</button>
+            <button type="button" class="qp-btn qp-owe${isSettle?' qp-settle':''}" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${oweText}</button>
+            <button type="button" class="qp-btn qp-collect${isRepay?' qp-repay':''}" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${collectText}</button>
           </div>
         </div>`;
     });
@@ -912,7 +965,7 @@ function buildQuickPadContent(){
         <div class="qp-column-header">
           <h4 class="qp-opponent-name">${escapeHtml(players[i].name)}</h4>
           <div class="qp-summary-line">
-            <span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>
+            <span class="owe">Owe: ${owe}</span> | <span class="collect">Due: ${collect}</span>
           </div>
         </div>
         <div class="qp-category-list">
@@ -1134,8 +1187,14 @@ function updateQuickPadRow(opponentIndex, cat){
   // Update button text dynamically
   const oweBtn = row.querySelector('.qp-owe');
   const collectBtn = row.querySelector('.qp-collect');
-  if(oweBtn) oweBtn.textContent = net > 0 ? "Settle" : "Borrow";
-  if(collectBtn) collectBtn.textContent = net < 0 ? "Repay" : "Lend";
+  if(oweBtn) {
+    oweBtn.textContent = net > 0 ? "Settle" : "Owe";
+    if(net > 0) oweBtn.classList.add('qp-settle'); else oweBtn.classList.remove('qp-settle');
+  }
+  if(collectBtn) {
+    collectBtn.textContent = net < 0 ? "Repay" : "Due";
+    if(net < 0) collectBtn.classList.add('qp-repay'); else collectBtn.classList.remove('qp-repay');
+  }
 
   row.classList.remove('positive','negative','neutral','pulse-green','pulse-red');
   if(net>0){
@@ -1162,7 +1221,7 @@ function rebuildQuickPadColumn(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Due: ${collect}</span>`;
   }
   
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
@@ -1178,7 +1237,7 @@ function updateQuickPadColumnSummary(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Debt: ${owe}</span> | <span class="collect">Credit: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Due: ${collect}</span>`;
   }
   updateClearDebtsButtonState();
 }
@@ -1189,8 +1248,8 @@ function updateQuickPadTotals(){
   const { owe, collect } = aggregateTotals(currentPlayerIndex);
   const oweSpan=bar.querySelector('.ds-owe');
   const collectSpan=bar.querySelector('.ds-collect');
-  if(oweSpan) oweSpan.textContent=`Debt: ${owe}`;
-  if(collectSpan) collectSpan.textContent=`Credit: ${collect}`;
+  if(oweSpan) oweSpan.textContent=`Owe: ${owe}`;
+  if(collectSpan) collectSpan.textContent=`Due: ${collect}`;
   updateClearDebtsButtonState();
 }
 
@@ -2051,3 +2110,4 @@ window.calculateFinalTaxes=calculateFinalTaxes;
 window.showTaxBreakdown=showTaxBreakdown;
 window.exitToSetup=exitToSetup;
 window.restorePlayerNamesAndSetup=restorePlayerNamesAndSetup;
+window.setPropertyStackPrice=setPropertyStackPrice;
