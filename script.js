@@ -66,7 +66,7 @@
  * - Column height adjusts automatically.
  *
  * FIX (2025-11-22):
- * - Fixed syntax error in variable name `maxProps Among`.
+ * - Fixed syntax error in variable name `maxPropsAmong`.
  *
  * UPDATED (2025-11-22 REORDER POWER CARDS):
  * - Moved "Show/Hide Power Cards" button out of header to top of list.
@@ -133,6 +133,18 @@
  * 
  * UPDATED (2025-11-24 STATUS BAR SWAP):
  * - Swapped the position of "Get" and "Owe" segments in debt summary bars and column headers.
+ * 
+ * UPDATED (2025-11-24 COLORED ARROWS):
+ * - Replaced "⇄" with colored arrows: Right (Red) and Left (Green).
+ * 
+ * UPDATED (2025-11-24 REVERT SWAP):
+ * - Reverting button and status bar swap: "Owe/Settle" (Red) back to Left, "Get/Repay" (Green) back to Right.
+ * 
+ * UPDATED (2025-11-25 ACTIVE NAME COLOR):
+ * - Highlighted the Active Player's name in QuickPad headers with gold (#d4af7f).
+ * 
+ * UPDATED (2025-11-25 HEADER ARROW CENTERING):
+ * - Wrapped header names in spans to support grid layout for perfect arrow centering.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -359,14 +371,14 @@ function buildDebtSummaryBar(idx=currentPlayerIndex, { interactive=true, idOverr
   if(interactive){
     return `
       <div class="debt-summary-bar debt-trade-bar"${idAttr} role="button" tabindex="0" aria-label="Adjust outstanding debts this turn">
-        <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
         <div class="trade-seg seg-owe"><span class="ds-owe">${labelOwe}</span></div>
+        <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
       </div>`;
   } else {
     return `
       <div class="debt-summary-bar debt-trade-bar passive"${idAttr} aria-label="Outstanding debts summary (view only)">
-        <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
         <div class="trade-seg seg-owe"><span class="ds-owe">${labelOwe}</span></div>
+        <div class="trade-seg seg-collect"><span class="ds-collect">${labelCollect}</span></div>
       </div>`;
   }
 }
@@ -968,8 +980,8 @@ function buildQuickPadContent(){
           <div class="qp-name">${escapeHtml(cat)}</div>
           <div class="qp-value" data-value>${displayVal}</div>
           <div class="qp-actions">
-            <button type="button" class="qp-btn qp-collect${isRepay?' qp-repay':''}" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${collectText}</button>
             <button type="button" class="qp-btn qp-owe${isSettle?' qp-settle':''}" data-action="owe" aria-label="Increase amount you owe for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${oweText}</button>
+            <button type="button" class="qp-btn qp-collect${isRepay?' qp-repay':''}" data-action="collect" aria-label="Increase amount they owe you for ${escapeHtml(cat)}" data-opponent="${i}" data-cat="${cat}">${collectText}</button>
           </div>
         </div>`;
     });
@@ -979,9 +991,9 @@ function buildQuickPadContent(){
     columnsHtml += `
       <div class="qp-column" data-opponent="${i}">
         <div class="qp-column-header">
-          <h4 class="qp-opponent-name">${escapeHtml(activeName)} <span class="qp-arrow-sep">⇄</span> ${escapeHtml(players[i].name)}</h4>
+          <h4 class="qp-opponent-name"><span class="qp-player-name active" style="color:#d4af7f">${escapeHtml(activeName)}</span> <span class="qp-arrow-sep"><span class="arrow-red">→</span><span class="arrow-green">←</span></span> <span class="qp-player-name">${escapeHtml(players[i].name)}</span></h4>
           <div class="qp-summary-line">
-            <span class="collect">Get: ${collect}</span> | <span class="owe">Owe: ${owe}</span>
+            <span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>
           </div>
         </div>
         <div class="qp-category-list">
@@ -1205,7 +1217,7 @@ function rebuildQuickPadColumn(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="collect">Get: ${collect}</span> | <span class="owe">Owe: ${owe}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>`;
   }
   
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
@@ -1221,7 +1233,7 @@ function updateQuickPadColumnSummary(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="collect">Get: ${collect}</span> | <span class="owe">Owe: ${owe}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>`;
   }
   updateClearDebtsButtonState();
 }
