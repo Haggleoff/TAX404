@@ -145,6 +145,9 @@
  * 
  * UPDATED (2025-11-25 HEADER ARROW CENTERING):
  * - Wrapped header names in spans to support grid layout for perfect arrow centering.
+ * 
+ * UPDATED (2025-11-25 SUMMARY CENTERING):
+ * - Wrapped column summary separator `|` in a span to support grid layout for perfect centering.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -993,7 +996,7 @@ function buildQuickPadContent(){
         <div class="qp-column-header">
           <h4 class="qp-opponent-name"><span class="qp-player-name active" style="color:#d4af7f">${escapeHtml(activeName)}</span> <span class="qp-arrow-sep"><span class="arrow-red">→</span><span class="arrow-green">←</span></span> <span class="qp-player-name">${escapeHtml(players[i].name)}</span></h4>
           <div class="qp-summary-line">
-            <span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>
+            <span class="owe">Owe: ${owe}</span><span class="qp-sep">|</span><span class="collect">Get: ${collect}</span>
           </div>
         </div>
         <div class="qp-category-list">
@@ -1217,7 +1220,7 @@ function rebuildQuickPadColumn(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span><span class="qp-sep">|</span><span class="collect">Get: ${collect}</span>`;
   }
   
   debtCategories.forEach(cat=>updateQuickPadRow(opponentIndex,cat));
@@ -1233,7 +1236,7 @@ function updateQuickPadColumnSummary(opponentIndex){
   const collect=sumTheyOwe(currentPlayerIndex,opponentIndex);
   const headerSummary=col.querySelector('.qp-summary-line');
   if(headerSummary){
-    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span> | <span class="collect">Get: ${collect}</span>`;
+    headerSummary.innerHTML=`<span class="owe">Owe: ${owe}</span><span class="qp-sep">|</span><span class="collect">Get: ${collect}</span>`;
   }
   updateClearDebtsButtonState();
 }
