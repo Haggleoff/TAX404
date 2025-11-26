@@ -148,6 +148,12 @@
  * 
  * UPDATED (2025-11-25 SUMMARY CENTERING):
  * - Wrapped column summary separator `|` in a span to support grid layout for perfect centering.
+ * 
+ * UPDATED (2025-11-26 SELECTED COLUMN LOGIC):
+ * - Implemented explicit column selection logic for QuickPad.
+ * - On large screens, the "Clear Debts" button targets the selected column (clicked or tapped)
+ *   rather than relying solely on the centered column.
+ * - On mobile screens, scrolling still auto-selects the center column.
  ************************************************************/
 
 const PLAYER_NAME_MAX = 10;
@@ -881,6 +887,7 @@ function refreshOverviewOnly(){
 
 /* ---------- QuickPad ---------- */
 let quickPadOpen=false;
+let selectedQuickPadOpponent = null; // Explicitly tracked selection
 
 function attachDebtBarHandler(){
   const bar=document.getElementById('debtSummaryBar');
@@ -901,7 +908,15 @@ function openQuickPad(){
   const pad=document.getElementById('quickPad');
   overlay.style.display='flex';
   document.body.classList.add('modal-open');
-  requestAnimationFrame(()=>pad.classList.add('open'));
+  
+  // Initialize selection
+  selectedQuickPadOpponent = null;
+  requestAnimationFrame(()=>{
+    pad.classList.add('open');
+    const centerIdx = getGeometricCenterColumnIndex();
+    updateSelectedQuickPadColumn(centerIdx);
+  });
+
   quickPadOpen=true;
   bindQuickPadEvents();
   bindTimerClick();
@@ -921,6 +936,7 @@ function closeQuickPad(){
     overlay.style.display='none';
     pad.innerHTML='';
     quickPadOpen=false;
+    selectedQuickPadOpponent = null;
   },380);
 }
 
@@ -1037,7 +1053,10 @@ function updateClearDebtsButtonState(){
   if(!quickPadOpen) return;
   const btn=document.getElementById('quickPadClearBtn');
   if(!btn) return;
-  const opponentIndex=getFocusedQuickPadOpponent();
+  
+  // Use the explicitly selected opponent
+  const opponentIndex = selectedQuickPadOpponent;
+
   if(opponentIndex==null){
     btn.disabled=true;
     return;
@@ -1070,6 +1089,15 @@ function bindQuickPadEvents(){
     columns.addEventListener('scroll', ()=>{
       if(scrollRAF) cancelAnimationFrame(scrollRAF);
       scrollRAF=requestAnimationFrame(()=>{
+        // Logic for mobile scrolling updates:
+        // If screen is small (< 768px), scroll updates selection to center column.
+        // If screen is large, we keep the manually clicked selection unless it's unset.
+        if (window.innerWidth < 768) {
+          const centerIdx = getGeometricCenterColumnIndex();
+          if (centerIdx !== null && centerIdx !== selectedQuickPadOpponent) {
+            updateSelectedQuickPadColumn(centerIdx);
+          }
+        }
         updateClearDebtsButtonState();
         // Removed call to updateQuickPadSubtitle
       });
@@ -1077,7 +1105,7 @@ function bindQuickPadEvents(){
   }
 }
 
-let lastQuickPadOpponent=null;
+let lastQuickPadOpponent=null; // Retain logic for click ops, but prioritize selectedQuickPadOpponent
 
 /* ---------- QuickPad click handler ---------- */
 function handleQuickPadClick(e){
@@ -1086,6 +1114,15 @@ function handleQuickPadClick(e){
 
   if(!e.target.closest('.qp-icon') && !e.target.closest('.qp-clear-btn')){
     pad.querySelectorAll('.qp-icon.show-clear').forEach(ic=>ic.classList.remove('show-clear'));
+  }
+
+  // Handle explicit column selection via click (for large screens)
+  const clickedCol = e.target.closest('.qp-column');
+  if (clickedCol) {
+    const idx = parseInt(clickedCol.dataset.opponent, 10);
+    if (!isNaN(idx) && idx !== selectedQuickPadOpponent) {
+      updateSelectedQuickPadColumn(idx);
+    }
   }
 
   /* Clear button */
@@ -1253,7 +1290,8 @@ function updateQuickPadTotals(){
 }
 
 /* ---------- Clear Debts Dialog ---------- */
-function getFocusedQuickPadOpponent(){
+// Helper to find geometric center column (used for mobile & initialization)
+function getGeometricCenterColumnIndex(){
   const container=document.getElementById('quickPadColumns');
   if(!container) return null;
   const cols=[...container.querySelectorAll('.qp-column')];
@@ -1270,15 +1308,45 @@ function getFocusedQuickPadOpponent(){
   if(!best) return null;
   return parseInt(best.dataset.opponent,10);
 }
+
+// Update the visually selected column
+function updateSelectedQuickPadColumn(idx) {
+  if (idx === null || isNaN(idx)) return;
+  selectedQuickPadOpponent = idx;
+  
+  const pad = document.getElementById('quickPad');
+  if (!pad) return;
+  
+  // Update visual state
+  const cols = pad.querySelectorAll('.qp-column');
+  cols.forEach(col => {
+    const colIdx = parseInt(col.dataset.opponent, 10);
+    if (colIdx === idx) {
+      col.classList.add('selected');
+    } else {
+      col.classList.remove('selected');
+    }
+  });
+  
+  updateClearDebtsButtonState();
+}
+
 function showClearDebtsDialog(){
-  const opponentIndex=getFocusedQuickPadOpponent();
+  // Use the explicitly selected opponent
+  const opponentIndex = selectedQuickPadOpponent;
+  
   if(opponentIndex==null){
-    customPopup("No opponent column detected.");
+    customPopup("No opponent column selected.");
     return;
   }
   if(!hasAnyDebtBetween(currentPlayerIndex, opponentIndex)){
     return;
   }
+
+  normalizePair(currentPlayerIndex,opponentIndex);
+  const owe = sumYouOwe(currentPlayerIndex,opponentIndex);
+  const collect = sumTheyOwe(currentPlayerIndex,opponentIndex);
+
   ensurePopupElements();
   const overlay=document.getElementById('customPopupOverlay');
   overlay.style.zIndex='2000';
@@ -1286,32 +1354,35 @@ function showClearDebtsDialog(){
   const btnBox=document.getElementById('customPopupButtons');
   const activeName=players[currentPlayerIndex].name;
   const oppName=players[opponentIndex].name;
+
+  const baseStyle = "flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;";
+  const disabledStyle = "opacity:0.45;cursor:not-allowed;filter:grayscale(0.5);pointer-events:none;";
+
+  const bothDisabled = (owe + collect <= 0);
+  const styleBoth = `background:var(--color-accent);color:#232323;border:2px solid var(--color-accent);cursor:pointer;${baseStyle}${bothDisabled ? disabledStyle : ''}`;
+
+  const getDisabled = (collect <= 0);
+  const styleGet = `background:#1f5e30;color:#e9ffe9;border:2px solid #2f7d46;cursor:pointer;${baseStyle}${getDisabled ? disabledStyle : ''}`;
+
+  const oweDisabled = (owe <= 0);
+  const styleOwe = `background:#5a2525;color:#f5dede;border:2px solid #862d2d;cursor:pointer;${baseStyle}${oweDisabled ? disabledStyle : ''}`;
+
+  const styleCancel = `background:#313131;color:#f1f1f1;border:2px solid #3a3a3a;cursor:pointer;${baseStyle}`;
+
   msg.innerHTML=`
     <h2 class="lilita" style="color:var(--color-accent);margin:0 0 .6rem;">Clear Debts</h2>
   `;
   btnBox.innerHTML=`
-    <button type="button" id="cddBothBtn"
-      style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
-             background:var(--color-accent);color:#232323;border:2px solid var(--color-accent);
-             box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
+    <button type="button" id="cddBothBtn" ${bothDisabled ? 'disabled' : ''} style="${styleBoth}">
       Between ${escapeHtml(activeName)} and ${escapeHtml(oppName)}
     </button>
-    <button type="button" id="cddOppOwesBtn"
-      style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
-             background:#1f5e30;color:#e9ffe9;border:2px solid #2f7d46;
-             box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
+    <button type="button" id="cddOppOwesBtn" ${getDisabled ? 'disabled' : ''} style="${styleGet}">
       ${escapeHtml(activeName)} gets from ${escapeHtml(oppName)}
     </button>
-    <button type="button" id="cddYouOweBtn"
-      style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
-             background:#5a2525;color:#f5dede;border:2px solid #862d2d;
-             box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
+    <button type="button" id="cddYouOweBtn" ${oweDisabled ? 'disabled' : ''} style="${styleOwe}">
       ${escapeHtml(activeName)} owes ${escapeHtml(oppName)}
     </button>
-    <button type="button" id="cddCancelBtn"
-      style="flex:1 1 100%;font-size:1.02rem;padding:0.7rem 1.2rem;border-radius:14px;
-             background:#313131;color:#f1f1f1;border:2px solid #3a3a3a;
-             box-shadow:var(--shadow-sm);font-family:var(--font-display);letter-spacing:.3px;cursor:pointer;">
+    <button type="button" id="cddCancelBtn" style="${styleCancel}">
       Cancel
     </button>
   `;

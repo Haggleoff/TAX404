@@ -88,6 +88,14 @@
    2025-11-25 (Thicker Arrows):
      - Removed gold text-shadow from header arrows.
      - Added stroke to .arrow-red and .arrow-green to thicken them.
+   2025-11-26 (Selected Column State):
+     - Added .qp-column.selected for visual indication of the active column on large screens.
+   2025-11-26 (Subtle Selection):
+     - Softened .qp-column.selected visual style (lighter border, subtler shadow).
+   2025-11-26 (Even Subtler Selection):
+     - Further reduced opacity of border and shadow for .qp-column.selected.
+   2025-11-26 (Extremely Subtle Selection):
+     - Dropped opacity significantly for minimal visual intrusion.
    ========================================================= */
 
 :root {
@@ -468,7 +476,7 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   letter-spacing:.4px; transition:background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   text-align:center;
 }
-.donation-btn[data-variant="primary"] { background:var(--color-accent); color:#232323; }
+.donation-btn[data-variant="primary"] { background:var(--color-accent); color:#232323; border:2px solid transparent; }
 .donation-btn[data-variant="primary"]:active { background:#b8925f; transform:translateY(1px); }
 .donation-btn[data-variant="secondary"] { background:var(--color-accent-alt); color:#fff; }
 .donation-btn[data-variant="secondary"]:active { background:var(--color-accent-alt-dark); transform:translateY(1px); }
@@ -1263,6 +1271,14 @@ input:focus, select:focus { outline:none; border-color:var(--color-accent); back
   box-shadow:0 4px 14px #000a;
   position:relative;
   height:auto;
+}
+
+/* New style for selected column */
+.qp-column.selected {
+  border-color: rgba(212, 175, 127, 0.25); /* Extremely subtle border */
+  box-shadow: 0 0 0 1px rgba(212, 175, 127, 0.08), 0 4px 14px #000a; /* Faint glow */
+  background: #262626;
+  z-index: 5;
 }
 
 .qp-column-header {
